@@ -1,0 +1,42 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mechatronics-engineering",
+  "version": "0.1.1",
+  "description": "Engineering guidance and runnable simulations for mechatronics and robotics.",
+  "author": {
+    "name": "Shaun Price",
+    "url": "https://github.com/ShaunPrice"
+  },
+  "homepage": "https://github.com/ShaunPrice/mechatronics-skill",
+  "repository": "https://github.com/ShaunPrice/mechatronics-skill",
+  "license": "MIT",
+  "keywords": [
+    "mechatronics",
+    "robotics",
+    "control-systems",
+    "simulation",
+    "manufacturing"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Mechatronics Engineering",
+        "shortDescription": "Design, simulate and manufacture robotic systems.",
+        "longDescription": "Learn engineering terminology, select methods, build interactive browser simulations and prepare manufacturing and business plans with the complete Mechatronics Engineering skill.",
+        "developerName": "Shaun Price",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://github.com/ShaunPrice/mechatronics-skill",
+        "defaultPrompt": [
+          "Design and simulate a motor positioning system.",
+          "Build a feedback diagram with adjustable PID gains.",
+          "Prepare my robot prototype for manufacturing."
+        ],
+        "brandColor": "#0F766E"
+      }
+    }
+  }
+}

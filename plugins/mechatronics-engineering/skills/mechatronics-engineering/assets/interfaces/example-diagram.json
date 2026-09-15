@@ -1,0 +1,13 @@
+{
+  "schema": "mechatronics-block-diagram/v1",
+  "settings": {"dt": 0.01, "duration": 20},
+  "nodes": [
+    {"id": "input", "type": "constant", "x": 50, "y": 100, "label": "Force / N", "params": {"value": 1}},
+    {"id": "plant", "type": "massSpring", "x": 300, "y": 100, "label": "Position / m", "params": {"m": 1, "b": 2, "k": 4, "initialPosition": 0, "initialVelocity": 0}},
+    {"id": "output", "type": "scope", "x": 600, "y": 100, "label": "Position / m", "params": {}}
+  ],
+  "edges": [
+    {"id": "input_plant", "from": {"node": "input", "port": "out"}, "to": {"node": "plant", "port": "in"}},
+    {"id": "plant_output", "from": {"node": "plant", "port": "out"}, "to": {"node": "output", "port": "in"}}
+  ]
+}

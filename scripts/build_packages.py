@@ -5,6 +5,7 @@ import json
 import re
 import zipfile
 from pathlib import Path
+from build_plugin import build as build_plugin
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "mechatronics-engineering"
@@ -83,11 +84,12 @@ def main():
     skill_path.write_bytes(zip_path.read_bytes())
     manifest={"name":NAME,"version":VERSION,"files":{p.relative_to(SKILL).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in source_files()}}
     (dist/"manifest.json").write_text(json.dumps(manifest,indent=2)+"\n",encoding="utf-8")
+    plugin_result = build_plugin(ROOT, dist, source_files())
     checksums=[]
     for p in sorted(dist.iterdir()):
         if p.is_file() and p.name!="SHA256SUMS": checksums.append(hashlib.sha256(p.read_bytes()).hexdigest()+"  "+p.name)
     (dist/"SHA256SUMS").write_text("\n".join(checksums)+"\n",encoding="utf-8")
-    print(json.dumps({"skill_files":len(manifest["files"]),"reference_files":len(references),"zip":str(zip_path.relative_to(ROOT)),"claude_skill":str(skill_path.relative_to(ROOT)),"browser":str((dist/"mechatronics-browser-workbench.html").relative_to(ROOT)),"instructions_characters":len(text(integration/"Instructions.txt"))},indent=2))
+    print(json.dumps({"skill_files":len(manifest["files"]),"reference_files":len(references),"zip":str(zip_path.relative_to(ROOT)),"claude_skill":str(skill_path.relative_to(ROOT)),"browser":str((dist/"mechatronics-browser-workbench.html").relative_to(ROOT)),"instructions_characters":len(text(integration/"Instructions.txt")), **plugin_result},indent=2))
 
 
 if __name__=="__main__":

@@ -1,0 +1,106 @@
+{
+  "schema": "mechatronics-block-diagram/v1",
+  "settings": {
+    "dt": 0.05,
+    "duration": 30
+  },
+  "nodes": [
+    {
+      "id": "heater",
+      "type": "constant",
+      "x": 30,
+      "y": 70,
+      "label": "Heater power / W",
+      "params": {
+        "value": 50
+      }
+    },
+    {
+      "id": "thermal",
+      "type": "firstOrder",
+      "x": 285,
+      "y": 70,
+      "label": "Temperature rise / K",
+      "params": {
+        "gain": 0.2,
+        "tau": 100,
+        "initial": 0
+      }
+    },
+    {
+      "id": "ambient",
+      "type": "constant",
+      "x": 290,
+      "y": 315,
+      "label": "Ambient / °C",
+      "params": {
+        "value": 25
+      }
+    },
+    {
+      "id": "temperature",
+      "type": "sum",
+      "x": 560,
+      "y": 90,
+      "label": "Sum",
+      "params": {
+        "signA": 1,
+        "signB": 1
+      }
+    },
+    {
+      "id": "temperatureScope",
+      "type": "scope",
+      "x": 820,
+      "y": 90,
+      "label": "Temperature / °C",
+      "params": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "power_to_thermal",
+      "from": {
+        "node": "heater",
+        "port": "out"
+      },
+      "to": {
+        "node": "thermal",
+        "port": "in"
+      }
+    },
+    {
+      "id": "rise_to_sum",
+      "from": {
+        "node": "thermal",
+        "port": "out"
+      },
+      "to": {
+        "node": "temperature",
+        "port": "a"
+      }
+    },
+    {
+      "id": "ambient_to_sum",
+      "from": {
+        "node": "ambient",
+        "port": "out"
+      },
+      "to": {
+        "node": "temperature",
+        "port": "b"
+      }
+    },
+    {
+      "id": "temperature_to_scope",
+      "from": {
+        "node": "temperature",
+        "port": "out"
+      },
+      "to": {
+        "node": "temperatureScope",
+        "port": "in"
+      }
+    }
+  ]
+}

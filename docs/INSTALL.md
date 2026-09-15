@@ -50,7 +50,15 @@ mkdir -p "$HOME/.agents/skills"
 cp -R skills/mechatronics-engineering "$HOME/.agents/skills/"
 ```
 
-Restart or refresh the relevant session if it does not appear. In Codex invoke `$mechatronics-engineering`; ChatGPT surfaces with native skill selection may use `@`. Local installation does not by itself prove that the skill is available in web/mobile. Official documentation distinguishes standalone local skills from plugin-distributed skills across surfaces. This repository provides a standalone skill plus the hosted fallback below; it does not register a plugin in an account's directory. See [OpenAI's skill documentation](https://learn.chatgpt.com/docs/build-skills).
+Restart or refresh the relevant session if it does not appear. In Codex invoke `$mechatronics-engineering`; ChatGPT surfaces with native skill selection may use `@`. Local installation does not by itself prove that the skill is available in web/mobile. Official documentation distinguishes standalone local skills from plugin-distributed skills across surfaces. This repository provides standalone skills, a packaged plugin and a hosted fallback; downloading these files does not register them in an account's directory. See [OpenAI's skill documentation](https://learn.chatgpt.com/docs/build-skills).
+
+## ChatGPT plugin: GitHub or downloaded marketplace
+
+Use the [ChatGPT plugin installation guide](CHATGPT-PLUGIN.md) for the packaged plugin, including the GitHub command, downloadable archives, supported desktop installation and hosted availability. The plugin includes the complete skill and browser assets. The repository marketplace provides distribution; it does not register the plugin in the public ChatGPT directory.
+
+## Hosted ChatGPT: native skill upload where available
+
+In accounts with the **Skills** directory, open [ChatGPT Skills](https://chatgpt.com/skills), select **Create → Upload from your computer**, and choose the release's `.skill` or `.zip` skill bundle without extracting it. Complete any confirmation and check that the skill appears. Start a new Work conversation and use `@` to select Mechatronics Engineering. This upload flow was observed in a signed-in account; availability varies. An earlier automated attempt returned a network-interruption error, so hosted installation has not been verified.
 
 ## Hosted ChatGPT: Project or custom GPT
 

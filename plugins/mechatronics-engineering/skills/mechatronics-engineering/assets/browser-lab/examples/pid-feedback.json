@@ -1,0 +1,122 @@
+{
+  "schema": "mechatronics-block-diagram/v1",
+  "settings": {
+    "dt": 0.01,
+    "duration": 20
+  },
+  "nodes": [
+    {
+      "id": "reference",
+      "type": "step",
+      "x": 30,
+      "y": 60,
+      "label": "Reference / m",
+      "params": {
+        "initial": 0,
+        "final": 1,
+        "at": 0.5
+      }
+    },
+    {
+      "id": "controller",
+      "type": "pid",
+      "x": 295,
+      "y": 145,
+      "label": "Sampled PID",
+      "params": {
+        "kp": 18,
+        "ki": 8,
+        "kd": 4,
+        "tf": 0.04,
+        "limit": 30
+      }
+    },
+    {
+      "id": "plant",
+      "type": "massSpring",
+      "x": 555,
+      "y": 145,
+      "label": "Mass–spring–damper",
+      "params": {
+        "m": 1,
+        "b": 1.2,
+        "k": 4,
+        "initialPosition": 0,
+        "initialVelocity": 0
+      }
+    },
+    {
+      "id": "position",
+      "type": "scope",
+      "x": 820,
+      "y": 65,
+      "label": "Position / m",
+      "params": {}
+    },
+    {
+      "id": "force",
+      "type": "scope",
+      "x": 550,
+      "y": 370,
+      "label": "Force / N",
+      "params": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "reference_pid",
+      "from": {
+        "node": "reference",
+        "port": "out"
+      },
+      "to": {
+        "node": "controller",
+        "port": "setpoint"
+      }
+    },
+    {
+      "id": "pid_plant",
+      "from": {
+        "node": "controller",
+        "port": "out"
+      },
+      "to": {
+        "node": "plant",
+        "port": "in"
+      }
+    },
+    {
+      "id": "plant_pid",
+      "from": {
+        "node": "plant",
+        "port": "out"
+      },
+      "to": {
+        "node": "controller",
+        "port": "measurement"
+      }
+    },
+    {
+      "id": "plant_scope",
+      "from": {
+        "node": "plant",
+        "port": "out"
+      },
+      "to": {
+        "node": "position",
+        "port": "in"
+      }
+    },
+    {
+      "id": "force_scope",
+      "from": {
+        "node": "controller",
+        "port": "out"
+      },
+      "to": {
+        "node": "force",
+        "port": "in"
+      }
+    }
+  ]
+}

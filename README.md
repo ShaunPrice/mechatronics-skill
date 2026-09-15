@@ -6,6 +6,7 @@ Built collaboratively with Claude and Codex. **MIT licensed.** The source, docum
 
 ## Start here
 
+- [Install the ChatGPT / Codex plugin](docs/CHATGPT-PLUGIN.md) · [Download plugin ZIP](https://github.com/ShaunPrice/mechatronics-skill/releases/download/v0.1.1/mechatronics-engineering-plugin-0.1.1.zip)
 - [Download the Claude .skill bundle](https://github.com/ShaunPrice/mechatronics-skill/releases/download/v0.1.0/mechatronics-engineering-0.1.0.skill)
 - [Install for Claude or ChatGPT](docs/INSTALL.md)
 - [Use the skill and example prompts](docs/USAGE.md)
@@ -83,6 +84,8 @@ node skills/mechatronics-engineering/scripts/test-builder-connections.cjs
 ```
 
 ## Packaging and maintenance
+
+The [plugin guide](docs/CHATGPT-PLUGIN.md) covers GitHub marketplace installation, downloaded packages, desktop versus hosted availability, and verification. Plugin v0.1.1 contains the unchanged skill v0.1.0. The builder also generates the plugin and marketplace ZIPs, and the validator checks their source parity. The plugin includes a portable Agent Plugins manifest plus OpenAI and Claude compatibility manifests. Publishing this repository does not publish the plugin into ChatGPT's universal directory.
 
 The source of truth is `skills/mechatronics-engineering/`. Run `python3 scripts/build_packages.py` to regenerate the Claude `.skill` bundle, equivalent portable ZIP, hosted ChatGPT knowledge/templates and standalone browser pages; run `python3 scripts/validate_package.py` to check both archives, release checksums and internal links. `dist/` is generated and ignored by Git; build it after cloning, or download the packaged files from the repository’s [Releases page](https://github.com/ShaunPrice/mechatronics-skill/releases). The ChatGPT integration files are committed for direct download and regenerated from source where appropriate.
 

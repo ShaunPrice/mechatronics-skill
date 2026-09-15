@@ -33,4 +33,4 @@ jobs:
       - name: Validate structure, links and archive
         run: python scripts/validate_package.py
       - name: Check generated reference parity
-        run: git diff --exit-code -- integrations/chatgpt skills/mechatronics-engineering/LICENSE
+        run: git diff --exit-code -- integrations/chatgpt skills/mechatronics-engineering/LICENSE plugins

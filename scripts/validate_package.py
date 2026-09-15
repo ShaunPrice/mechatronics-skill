@@ -7,6 +7,7 @@ import zipfile
 from html.parser import HTMLParser
 from pathlib import Path
 from build_packages import ROOT, SKILL, NAME, VERSION, source_files, text
+from validate_plugin_distribution import validate as validate_plugin
 
 
 class LocalAssets(HTMLParser):
@@ -72,9 +73,10 @@ def main():
         if p.parent==SKILL/"assets/interfaces" and p.suffix in (".py", ".sce", ".json"):
             entry=f"=== FILE: {p.relative_to(SKILL).as_posix()} ===\n{text(p)}"
             if entry not in python_bundle: errors.append(f"missing/stale hosted interface companion: {p.name}")
+    errors.extend(validate_plugin(ROOT))
     if errors:
         raise SystemExit("\n".join(errors))
-    print(json.dumps({"status":"PASS","skill_files":len(files),"local_links_checked":count,"archive_and_manifest_match":True,"claude_skill_matches_zip":True,"release_checksums_match":True},indent=2))
+    print(json.dumps({"status":"PASS","skill_files":len(files),"local_links_checked":count,"archive_and_manifest_match":True,"claude_skill_matches_zip":True,"release_checksums_match":True,"plugin_distribution_matches_source":True},indent=2))
 
 
 if __name__=="__main__":

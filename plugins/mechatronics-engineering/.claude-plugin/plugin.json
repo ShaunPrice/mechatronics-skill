@@ -1,0 +1,19 @@
+{
+  "name": "mechatronics-engineering",
+  "version": "0.1.1",
+  "description": "Engineering guidance and runnable simulations for mechatronics and robotics.",
+  "author": {
+    "name": "Shaun Price",
+    "url": "https://github.com/ShaunPrice"
+  },
+  "homepage": "https://github.com/ShaunPrice/mechatronics-skill",
+  "repository": "https://github.com/ShaunPrice/mechatronics-skill",
+  "license": "MIT",
+  "keywords": [
+    "mechatronics",
+    "robotics",
+    "control-systems",
+    "simulation",
+    "manufacturing"
+  ]
+}
