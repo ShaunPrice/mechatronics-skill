@@ -1,0 +1,484 @@
+Mechatronics Browser Workbench — MIT licensed. The source below is a complete standalone HTML application. Save the content beginning with <!doctype html> (case insensitive) as an .html file. Adapt equations and geometry to the user's problem; preserve evidence labels.
+
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mechatronics · Browser Lab</title><style>
+:root{color-scheme:dark;--bg:#0c111a;--panel:#141c28;--raised:#192433;--line:#293647;--ink:#e8eef7;--muted:#98a9bd;--cyan:#53d9d1;--amber:#f7be66;--violet:#ab9bff;--red:#f18290;--green:#9ad89a}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{height:94px;border-bottom:1px solid var(--line);padding:0 max(24px,calc((100vw - 1520px)/2));display:flex;align-items:center;justify-content:space-between;background:#101824}.brand{display:flex;gap:13px;align-items:center;letter-spacing:2px;font-size:14px}.brand-icon{display:grid;place-items:center;width:42px;height:42px;border:1px solid var(--cyan);color:var(--cyan);font-weight:800;font-size:23px;transform:rotate(-5deg)}.brand .eyebrow{display:block;font-size:9px;margin-top:2px}.eyebrow{color:var(--muted);font-weight:650;font-size:10px;letter-spacing:1.8px}.header-note{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:9px}.status-dot{width:7px;height:7px;background:var(--cyan);border-radius:50%;box-shadow:0 0 10px #53d9d144}main{max-width:1568px;margin:auto;padding:35px 24px 20px}.intro{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:30px}h1{font-size:clamp(28px,3vw,43px);line-height:1.13;letter-spacing:-1.3px;font-weight:650;margin:10px 0 13px}p{margin:8px 0 15px}.intro p,.analysis-heading p{color:var(--muted);max-width:840px}.evidence-badge{text-align:right;font-size:10px;color:var(--muted);letter-spacing:1px;white-space:nowrap;border-left:2px solid var(--amber);padding-left:15px}.evidence-badge strong{display:block;color:var(--amber);font-size:14px;letter-spacing:0;margin-top:3px}.tabs{display:flex;gap:25px;border-bottom:1px solid var(--line);margin-bottom:25px}.tab{border:0;border-radius:0;background:transparent;padding:12px 4px 15px;color:var(--muted);font-size:11px;letter-spacing:.3px;border-bottom:2px solid transparent}.tab span{margin-left:9px;font-size:14px;letter-spacing:0}.tab.active{color:var(--cyan);border-color:var(--cyan)}button,input,select{font:inherit}button{cursor:pointer;background:var(--raised);color:var(--ink);border:1px solid #35465c;border-radius:6px;padding:8px 12px;font-size:12px;transition:background .15s,border .15s}button:hover{background:#223246;border-color:#57708d}button:focus-visible,input:focus-visible,select:focus-visible,canvas:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}button.primary{background:var(--cyan);border-color:var(--cyan);color:#102728;font-weight:700}button.primary:hover{background:#88eee9}.text-button{border:0;background:transparent;color:var(--cyan);padding:3px 0;font-size:11px}.text-button:hover{background:transparent;color:#a0fffa}.tab-panel{display:none}.tab-panel.active{display:block}.lab-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:22px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:21px;min-width:0}.panel-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px}.panel-heading h2,.panel-heading h3{margin:0}h2{font-size:19px;letter-spacing:-.35px;margin:3px 0 12px;font-weight:650}h3{font-size:19px;margin:0 0 12px}h4{margin:20px 0 5px}.controls h2{font-size:16px}.small{font-size:12px}.micro{font-size:10px;line-height:1.65}.muted{color:var(--muted)}fieldset{border:0;margin:0 0 19px;padding:0}legend{font-size:10px;letter-spacing:1.25px;color:var(--cyan);margin-bottom:11px;text-transform:uppercase;font-weight:700}.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}label{font-size:10px;font-weight:600;display:block;color:#c6d3e3;line-height:1.6}label>span{display:block;font-size:9px;color:var(--muted);font-weight:400}input[type=number]{display:block;width:100%;background:#0e1621;color:var(--ink);border:1px solid #314055;border-radius:5px;padding:7px 8px;margin-top:4px;font:13px ui-monospace,SFMono-Regular,Consolas,monospace}input[type=range]{width:100%;display:block;accent-color:var(--cyan);margin:10px 0}input[type=checkbox]{accent-color:var(--cyan)}input:invalid{border-color:var(--red)}output{float:right;color:var(--cyan);font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.gain-label{margin-top:15px}details{margin:13px 0;font-size:11px}summary{cursor:pointer;color:var(--muted);padding:5px 0}details .field-grid{margin-top:12px}.model-equation{font:11px/1.9 ui-monospace,SFMono-Regular,Consolas,monospace;background:#0d1622;color:#b3d8df;border:1px solid var(--line);border-radius:6px;padding:10px;margin-top:15px;overflow-wrap:anywhere}.workspace{display:flex;flex-direction:column;gap:22px}.chip{font-size:9px;letter-spacing:.7px;white-space:nowrap;border:1px solid #3c4b5e;padding:4px 7px;border-radius:4px;color:#bbcce0}.chip.stable{color:var(--cyan);border-color:#386362}.chip.unstable{color:var(--red);border-color:#86515b}.mechanism{height:260px;width:100%;display:block}.run-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.speed-label{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px}select{background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-size:11px;padding:7px}.run-controls #run-status{font-size:11px;color:var(--muted);margin-left:auto}.metrics{display:grid;grid-template-columns:repeat(4,1fr);margin-top:18px;padding-top:17px;border-top:1px solid var(--line);gap:12px}.metrics span{display:block;font-size:10px;color:var(--muted);margin-bottom:3px}.metrics strong{font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}.metrics small{font-size:10px;color:var(--muted)}.legend{display:flex;flex-wrap:wrap;gap:9px 17px;font-size:10px;color:var(--muted);margin:10px 0 4px}.legend span:before{content:"";display:inline-block;width:13px;height:3px;vertical-align:middle;margin-right:6px;background:currentColor}.cyan{color:var(--cyan)}.amber{color:var(--amber)}.violet{color:var(--violet)}.red{color:var(--red)}.green{color:var(--green)}.gray{color:#99abc1}.plot{display:block;width:100%;height:195px;touch-action:pan-y}.plot.short{height:155px}.plot.tall{height:295px}.analysis-heading{display:flex;justify-content:space-between;align-items:center;gap:25px;margin:38px 0 20px}.analysis-heading h2{font-size:25px;margin-top:7px}.analysis-heading p{font-size:12px;margin-bottom:0}.analysis-heading button{white-space:nowrap}.analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}.nyquist-panel{grid-column:1/-1}.nyquist-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:30px}.nyquist-notes{font-size:12px;color:#b8c7d9;padding-top:10px}.check-label{display:flex;gap:6px;align-items:center}.data-note{font:11px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;color:#c7d3e3;border-top:1px solid var(--line);margin-top:8px;padding-top:10px;overflow-wrap:anywhere}.callout{padding:14px;border:1px solid #5a5341;border-left:3px solid var(--amber);background:#211f1b;border-radius:5px;font-size:12px;margin-top:20px;color:#d4cbb9}.callout strong{color:var(--amber)}.callout p{margin-bottom:0}.nyquist-notes .callout{margin-top:0}.arm-layout{display:grid;grid-template-columns:310px minmax(0,1fr);gap:22px}#arm-parameters>label{margin:20px 0}#arm-motion,#arm-camera{margin-top:20px}#arm-canvas{width:100%;height:480px;display:block;touch-action:none;border:1px solid #223144;border-radius:7px;cursor:grab}.arm-scene>.small{margin-top:10px}.guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}.guide-grid p,.guide-grid li{font-size:13px;color:#bdcadd}.guide-grid ol{padding-left:20px}.guide-grid li{padding-left:5px;margin-bottom:12px}code{font:12px ui-monospace,SFMono-Regular,Consolas,monospace;color:#9fddd7}footer{font-size:10px;color:#7f93aa;border-top:1px solid var(--line);margin-top:35px;padding-top:20px;display:flex;justify-content:space-between;gap:20px}#error{background:#39222a;color:#ffb8c2;border:1px solid #985b69;padding:12px;margin:15px 0;border-radius:5px;font-size:13px}#tooltip{position:fixed;z-index:10;pointer-events:none;background:#08131ff5;border:1px solid #526b85;padding:9px 12px;border-radius:5px;font:11px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;box-shadow:0 5px 20px #0005;max-width:290px;white-space:pre-line}.plot:hover{cursor:crosshair}@media(min-width:1250px){.motion-panel .mechanism{height:285px}.workspace{justify-content:space-between}}@media(max-width:1000px){.lab-layout{grid-template-columns:275px minmax(0,1fr)}.panel{padding:16px}.metrics{grid-template-columns:repeat(2,1fr)}.nyquist-grid{grid-template-columns:1fr 1fr;gap:20px}.arm-layout{grid-template-columns:260px minmax(0,1fr)}}@media(max-width:760px){header{height:78px;padding:0 18px}.header-note{font-size:10px}.brand{font-size:11px}.brand-icon{width:34px;height:34px}main{padding:25px 14px}.intro{align-items:flex-start}.evidence-badge{font-size:8px}.evidence-badge strong{font-size:11px}.intro p{font-size:12px}.tabs{gap:8px;justify-content:space-between}.tab{font-size:9px;padding:10px 2px}.tab span{margin-left:4px;font-size:11px}.lab-layout,.arm-layout{grid-template-columns:1fr}.controls #parameters{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}.controls #parameters fieldset:last-of-type{grid-column:1/-1}.controls #parameters fieldset:last-of-type .field-grid{grid-template-columns:repeat(4,1fr)}.controls #parameters details{grid-column:1/-1}.analysis-grid,.guide-grid,.nyquist-grid{grid-template-columns:1fr}.analysis-heading{display:block}.analysis-heading button{margin-top:14px}.analysis-heading h2{font-size:23px}.nyquist-panel{grid-column:auto}.mechanism{height:235px}.metrics{grid-template-columns:repeat(4,1fr)}.metrics strong{font-size:18px}.metrics span{font-size:9px}.arm-layout .controls #arm-parameters{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}#arm-parameters>label{margin:8px 0}#arm-parameters .field-grid{grid-column:1/-1;grid-template-columns:repeat(3,1fr)}#arm-canvas{height:400px}footer{display:block}footer span{display:block;margin-top:6px}}@media(max-width:460px){.header-note{display:none}.intro{gap:15px}.intro h1{font-size:29px}.evidence-badge{display:none}.controls #parameters{display:block}.controls #parameters fieldset:last-of-type .field-grid{grid-template-columns:1fr 1fr}.metrics{grid-template-columns:1fr 1fr}.panel-heading{flex-wrap:wrap}.run-controls #run-status{margin-left:0}.tab span{font-size:10px}.plot.tall{height:260px}#arm-canvas{height:340px}}
+
+button:disabled{opacity:.45;cursor:not-allowed}button:disabled:hover{background:var(--raised);border-color:#35465c}
+
+.builder-link{align-self:center;color:var(--cyan);font-size:12px;text-decoration:none;padding:12px 4px}.builder-link:hover{text-decoration:underline}.tabs{flex-wrap:wrap}
+
+</style></head>
+<body>
+<header><div class="brand"><span class="brand-icon" aria-hidden="true">M</span><div><strong>MECHATRONICS</strong><span class="eyebrow">ENGINEERING BROWSER LAB</span></div></div><div class="header-note"><span class="status-dot"></span> Local · offline · editable</div></header>
+<main>
+  <section class="intro"><div><div class="eyebrow">MODEL → EXPERIMENT → UNDERSTAND</div><h1>Make the dynamics visible.</h1><p>Build intuition with a sampled controller, a moving mechanism, and the mathematics behind the response.</p></div><span class="evidence-badge">ILLUSTRATIVE MODEL<br><strong>Simulation only</strong></span></section>
+  <nav class="tabs" aria-label="Laboratory views"><button class="tab active" data-tab="dynamics" aria-selected="true">01 <span>Dynamics & control</span></button><button class="tab" data-tab="arm" aria-selected="false">02 <span>3D robot kinematics</span></button><button class="tab" data-tab="guide" aria-selected="false">03 <span>Model & method guide</span></button><a class="builder-link" href="mechatronics-system-builder.html">04 <span>Drag &amp; drop system builder ↗</span></a></nav>
+  <div id="error" role="alert" hidden></div>
+  <section id="dynamics" class="tab-panel active">
+    <div class="lab-layout">
+      <aside class="panel controls"><div class="panel-heading"><h2>Define the experiment</h2><button id="defaults" class="text-button">Restore defaults</button></div><p class="small muted">SI units. Changing a model parameter starts a fresh run and refreshes the continuous analysis.</p>
+        <form id="parameters">
+          <fieldset><legend>01 / Physical plant</legend><div class="field-grid">
+            <label>Mass <span>kg</span><input name="m" type="number" min="0.02" max="1000" step="any" value="1"></label>
+            <label>Damping <span>N·s/m</span><input name="b" type="number" min="0.001" max="100" step="any" value="1.2"></label>
+            <label>Stiffness <span>N/m</span><input name="k" type="number" min="0.001" max="1000" step="any" value="4"></label>
+            <label>Target <span>m</span><input name="target" type="number" min="-10" max="10" step="any" value="1"></label>
+          </div></fieldset>
+          <fieldset><legend>02 / Fixed controller shape</legend><div class="field-grid">
+            <label>Proportional Kp <span>N/m</span><input name="kp" type="number" min="0" max="10000" step="any" value="18"></label>
+            <label>Integral Ki <span>N/(m·s)</span><input name="ki" type="number" min="0" max="10000" step="any" value="8"></label>
+            <label>Derivative Kd <span>N·s/m</span><input name="kd" type="number" min="0" max="1000" step="any" value="4"></label>
+            <label>D filter τf <span>s</span><input name="tf" type="number" min="0.001" max="10" step="any" value="0.04"></label>
+          </div><label class="gain-label">Overall loop gain g <output id="gain-value">1.00</output><input name="g" type="range" min="0" max="8" step="0.05" value="1"></label><p class="micro muted">g scales Kp, Ki, and Kd together. Root locus varies only this scalar.</p></fieldset>
+          <fieldset><legend>03 / Sampled implementation</legend><div class="field-grid">
+            <label>Sample period Ts <span>s</span><input name="ts" type="number" min="0.001" max="0.2" step="any" value="0.01"></label>
+            <label>Force limit ± <span>N</span><input name="limit" type="number" min="0.01" max="10000" step="any" value="30"></label>
+            <label>Constant disturbance <span>N</span><input name="disturbance" type="number" min="-1000" max="1000" step="any" value="0"></label>
+            <label>Run length <span>s</span><input name="duration" type="number" min="1" max="120" step="any" value="20"></label>
+          </div></fieldset>
+          <details><summary>Analysis range</summary><div class="field-grid"><label>Min log₁₀ ω<input name="logMin" type="number" min="-5" max="5" step="any" value="-2"></label><label>Max log₁₀ ω<input name="logMax" type="number" min="-4" max="6" step="any" value="3"></label><label>Locus maximum g<input name="locusMax" type="number" min="0.1" max="1000" step="any" value="8"></label></div></details>
+        </form>
+        <div class="model-equation">G(s) = 1 / (ms² + bs + k)<br>C(s) = g [Kp + Ki/s + Kd·s/(1 + τf·s)]</div>
+      </aside>
+      <div class="workspace">
+        <section class="panel motion-panel"><div class="panel-heading"><div><span class="eyebrow">CLOSED-LOOP POSITION CONTROL</span><h2>Mass, spring & damper</h2></div><span class="chip">2D DYNAMICS</span></div>
+          <canvas id="mechanism" class="mechanism" aria-label="Animated mass attached to a spring and damper; numerical position is also shown below"></canvas>
+          <div class="run-controls"><button id="play" class="primary">▶ Run experiment</button><button id="reset">↺ Reset</button><label class="speed-label">Playback <select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option></select></label><span id="run-status" role="status">Ready</span></div>
+          <p class="micro muted">Clock policy: hidden tabs pause both experiments. A delayed render frame contributes at most 0.1 s of wall time; playback never catches up through a hidden-tab gap. Integration and joint-motion steps remain fixed.</p><div class="metrics"><div><span>Simulated time</span><strong id="time">0.00 <small>s</small></strong></div><div><span>Position</span><strong id="position">0.000 <small>m</small></strong></div><div><span>Force command</span><strong id="force">18.00 <small>N</small></strong></div><div><span>Stored energy</span><strong id="energy">0.000 <small>J</small></strong></div></div>
+        </section>
+        <section class="panel"><div class="panel-heading"><h2>Response over time</h2><button id="export-csv" class="text-button">Export run CSV ↓</button></div><div class="legend"><span class="cyan">Position x</span><span class="amber">Target r</span></div><canvas id="time-chart" class="plot" aria-label="Position and target versus simulated time"></canvas><div class="legend"><span class="violet">Actuator force u</span><span class="gray">± saturation limits</span></div><canvas id="force-chart" class="plot short" aria-label="Actuator force versus simulated time"></canvas><p class="micro muted">Controller updates on the fixed sample clock. Force is held between samples; RK4 integrates the plant. Playback speed changes rendering pace only.</p></section>
+      </div>
+    </div>
+    <section class="analysis-heading"><div><span class="eyebrow">CONTINUOUS-TIME LINEAR ANALYSIS</span><h2>Three views of the same feedback loop.</h2><p>L(s) = C(s)G(s), with negative unity feedback. These plots exclude sampling, saturation, disturbance, and implementation delay.</p></div><button id="export-json">Export model & datasets ↓</button></section>
+    <div class="analysis-grid">
+      <section class="panel"><div class="panel-heading"><h3>Root locus</h3><span id="pole-status" class="chip"></span></div><p class="small muted">Where the closed-loop poles move as g changes. Poles to the left of the imaginary axis decay; poles to the right grow.</p><div class="legend"><span class="cyan">Pole trajectories</span><span class="amber">× Current poles</span><span class="gray">+ Open-loop poles</span><span class="violet">○ Controller zeros</span></div><canvas id="root-chart" class="plot tall" aria-label="Root locus: pole real part against imaginary part"></canvas><div id="pole-summary" class="data-note"></div><p class="micro muted">Roots of D(s) + gN(s) = 0, computed for one fixed controller shape. Disabled integral/derivative terms remove their unused denominator factors. This is a pole test of the ideal continuous model.</p></section>
+      <section class="panel"><div class="panel-heading"><h3>Bode response</h3><span class="chip">L = C × G</span></div><p class="small muted">How the loop changes sinusoid amplitude and phase. At 0 dB the loop magnitude is one; phase near −180° can turn intended correction into reinforcement.</p><canvas id="bode-mag" class="plot short" aria-label="Loop magnitude in decibels versus frequency"></canvas><canvas id="bode-phase" class="plot short" aria-label="Unwrapped loop phase in degrees versus frequency"></canvas><div id="margin-summary" class="data-note"></div><p class="micro muted">Crossings are interpolated over the displayed finite frequency range. All detected crossings are reported. Missing crossings are “not found”; they are not automatically infinite margins.</p></section>
+      <section class="panel nyquist-panel"><div class="panel-heading"><h3>Nyquist response</h3><label class="check-label"><input type="checkbox" id="nyquist-focus" checked> Critical-point zoom</label></div><p class="small muted">Trace the complex loop response around the critical point −1 + j0. Arrows show increasing |ω| on each branch. Zoom can clip the trace.</p><div class="nyquist-grid"><div><div class="legend"><span class="cyan">+ω</span><span class="violet">−ω</span><span class="amber">× Critical point (−1, 0)</span></div><canvas id="nyquist-chart" class="plot tall" aria-label="Finite frequency Nyquist trace in the complex loop plane"></canvas></div><div class="nyquist-notes"><div class="callout"><strong>A trace is not a completed contour.</strong><p id="nyquist-warning"></p></div><h4>The encirclement rule</h4><p>Use <strong>clockwise-positive</strong> net encirclements N of −1 for the complete mapped contour. Then <strong>Z = P + N</strong>, where P counts right-half-plane open-loop poles and Z counts right-half-plane closed-loop poles.</p><p>The ideal plant here has P = 0. An integral pole at s = 0 is on the contour boundary, not in P; it needs an indentation and limit treatment.</p><p><strong>No encirclement verdict is inferred from this finite trace.</strong> The separately displayed pole calculation evaluates the ideal continuous characteristic polynomial directly.</p></div></div></section>
+    </div>
+  </section>
+  <section id="arm" class="tab-panel"><div class="arm-layout"><aside class="panel controls"><span class="eyebrow">FORWARD KINEMATICS</span><h2>Build a three-joint arm</h2><p class="small muted">A base yaw and two pitch joints. Link lengths and joint angles determine the tool position in a right-handed world: Z up, X/Y across the floor.</p><form id="arm-parameters"><label>Base yaw <output data-value="yaw">25°</output><input name="yaw" type="range" min="-180" max="180" step="1" value="25"></label><label>Shoulder pitch <output data-value="shoulder">30°</output><input name="shoulder" type="range" min="-90" max="120" step="1" value="30"></label><label>Elbow relative pitch <output data-value="elbow">−55°</output><input name="elbow" type="range" min="-150" max="150" step="1" value="-55"></label><div class="field-grid"><label>Upper link L1 <span>m</span><input name="l1" type="number" min="0.1" max="3" step="any" value="1.2"></label><label>Forearm L2 <span>m</span><input name="l2" type="number" min="0.1" max="3" step="any" value="0.9"></label><label>Base height <span>m</span><input name="base" type="number" min="0.05" max="2" step="any" value="0.25"></label></div></form><button id="arm-motion" class="primary">▶ Demonstrate joint motion</button><button id="arm-camera">Reset camera</button><div class="callout"><strong>Kinematic visualization</strong><p>This computes geometry, not rigid-body dynamics. It does not model joint torque, gravity response, inertia, collision, actuator limits, structural load, or a validated robot trajectory.</p></div></aside><section class="panel arm-scene"><div class="panel-heading"><div><span class="eyebrow">PERSPECTIVE PROJECTION · ORBIT CAMERA</span><h2>Robot workspace</h2></div><span class="chip">3D GEOMETRY</span></div><canvas id="arm-canvas" tabindex="0" aria-label="Three-dimensional projected robot arm. Drag or use arrow keys to orbit the camera; scroll or use plus/minus to zoom."></canvas><p class="small muted">Drag to orbit · scroll to zoom · arrow keys / + / − when focused. Touch: drag to orbit; use the zoom buttons.</p><div class="run-controls"><button id="zoom-in" aria-label="Zoom in">Zoom +</button><button id="zoom-out" aria-label="Zoom out">Zoom −</button><span class="legend"><span class="red">X</span><span class="green">Y</span><span class="cyan">Z</span></span></div><div class="metrics"><div><span>Tool X</span><strong id="tool-x"></strong></div><div><span>Tool Y</span><strong id="tool-y"></strong></div><div><span>Tool Z</span><strong id="tool-z"></strong></div><div><span>Joint-motion clock</span><strong id="arm-time">0.00 <small>s</small></strong></div></div><canvas id="arm-chart" class="plot short" aria-label="Tool position X Y Z over the illustrative joint-motion clock"></canvas><div class="legend"><span class="red">Tool X / m</span><span class="green">Tool Y / m</span><span class="cyan">Tool Z / m</span></div><div class="run-controls"><button id="export-arm" class="text-button">Export arm geometry & path JSON ↓</button><button id="export-usd-pose">Export current pose .usda ↓</button><button id="export-usd-animation" disabled>Export recorded animation .usda ↓</button></div><p class="small muted">OpenUSD export: metre units, Z-up, named joint transforms, and visual geometry. Animation exports the recorded joint angles at 60 time codes/s and a static tool-path curve; viewers interpolate between samples. Run the joint demonstration to record samples. No rigid-body physics, collisions, inertia, or controller execution is exported.</p></section></div></section>
+  <section id="guide" class="tab-panel"><div class="guide-grid"><section class="panel"><span class="eyebrow">START HERE</span><h2>A useful first experiment</h2><ol><li>Run the defaults and watch the mass approach the target.</li><li>Set Ki to zero. The proportional controller needs position error to produce the spring’s holding force; the final position stays below the target.</li><li>Restore Ki. Integral action can supply that holding force after the position error has reduced.</li><li>Reduce the force limit to 2 N. For a 1 m target and 4 N/m spring, the required 4 N exceeds the actuator limit. Tuning cannot overcome missing force.</li><li>Increase Ts to 0.2 s. The sampled implementation changes, while the continuous plots stay the same. That gap is why digital stability needs its own analysis.</li><li>Adjust g and compare the poles, time response, and frequency response. Then vary mass or stiffness to test model sensitivity.</li></ol></section><section class="panel"><span class="eyebrow">WHAT THE MODEL MEANS</span><h2>Equations and assumptions</h2><p><code>m·ẍ + b·ẋ + k·x = u + d</code></p><p>The plant is one linear translational degree of freedom, an ideal spring, and viscous damping. Initial position and velocity are zero. Disturbance d is a constant force applied from t = 0.</p><p>The time controller uses <code>u = clip(g[Kp(r−x) + I − Kd·v̂], ±Fmax)</code>. Integral update is conditional: it freezes when the error would drive an already saturated actuator further into saturation. The derivative estimate uses an exponential low-pass filter on sampled position differences.</p><p>The continuous derivative-on-measurement architecture has the same characteristic feedback denominator as C(s) above, but a different setpoint numerator from derivative-on-error. The Bode plot is the feedback loop L, not the setpoint transfer function.</p><p>Stored energy is <code>½mv² + ½kx²</code>. Its rate is <code>(u+d)v − bv²</code>: the controller and disturbance can add energy, and damping dissipates it.</p></section><section class="panel"><span class="eyebrow">NUMERICAL EVIDENCE</span><h2>What you can conclude</h2><p>The core computes polynomial roots, complex frequency response, sampled controller updates, RK4 motion, and 3D forward kinematics. The render loop consumes a separate simulated clock. Frame rate and playback speed do not define the integration step.</p><p>Time data are logged at controller sample instants; chart drawing may decimate only the display. Exports contain the complete logged run. Plot hover shows a nearby computed sample, not an exact analytic point. Margins are finite-grid estimates and root locations have floating-point numerical error.</p><p>Run stops at the requested duration (rounded up to the next sample). Extreme excursions stop the numerical experiment. A stable continuous pole result does not validate the sampled or saturated implementation.</p><p>These are illustrative model results. No physical system, material selection, manufacturing process, safety function, sensor chain, or hardware controller has been commissioned by this page.</p></section><section class="panel"><span class="eyebrow">EXTEND THE LAB</span><h2>Turn a problem into a model</h2><ol><li>State the measured output, command, units, operating envelope, and acceptance criteria.</li><li>Replace the plant derivatives in <code>math.js</code> with traceable equations and parameters. Add the new states to the export schema.</li><li>Write conservation, equilibrium, limiting-case, convergence, and known-solution checks before using the model for decisions.</li><li>Keep the simulation clock independent of rendering. Add sample timing, saturation, noise, delays, and actuator dynamics explicitly when needed.</li><li>For 3D dynamics, introduce mass and inertia tensors, joint forces, constraints, contacts, and a suitable solver. Changing geometry alone does not add dynamics.</li><li>Compare predictions against measured data, document differences, and validate the intended operating range.</li></ol><p class="small muted">Open <code>index.html</code> directly; no server, installation, network request, or CDN is required. Source: <code>math.js</code>, <code>usd.js</code>, <code>app.js</code>, and <code>style.css</code>.</p></section></div></section>
+  <footer>Mechatronics Engineering Skill · MIT licensed · Original educational model · <span>Hover over analysis plots for values. All exported results identify their evidence limits.</span></footer>
+</main><div id="tooltip" role="status" hidden></div><script>
+/* Original educational numerical core. SI units, negative unity feedback. MIT. */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.MechMath = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+  const defaults = Object.freeze({m:1,b:1.2,k:4,kp:18,ki:8,kd:4,tf:0.04,g:1,ts:0.01,limit:30,target:1,disturbance:0,duration:20,logMin:-2,logMax:3,locusMax:8});
+  const units = Object.freeze({t:'s',x:'m',v:'m/s',a:'m/s²',u:'N',error:'m',integral:'N',derivative:'m/s',energy:'J',target:'m',omega:'rad/s',magnitude:'dB',phase:'deg',poleReal:'1/s',poleImag:'1/s'});
+  const cx = (re=0,im=0) => ({re,im});
+  const add = (a,b) => cx(a.re+b.re,a.im+b.im);
+  const sub = (a,b) => cx(a.re-b.re,a.im-b.im);
+  const mul = (a,b) => cx(a.re*b.re-a.im*b.im,a.re*b.im+a.im*b.re);
+  const div = (a,b) => { const d=b.re*b.re+b.im*b.im; return cx((a.re*b.re+a.im*b.im)/d,(a.im*b.re-a.re*b.im)/d); };
+  const abs = a => Math.hypot(a.re,a.im);
+  const scale = (a,s) => cx(a.re*s,a.im*s);
+  const evaluate = (coeff,z) => coeff.reduce((v,c)=>add(mul(v,z),cx(c)),cx());
+  const clamp = (x,lo,hi) => Math.max(lo,Math.min(hi,x));
+  function trim(a) { a=a.slice(); while(a.length>1 && a[0]===0) a.shift(); return a; }
+  function polynomialRoots(input) {
+    const p=trim(input); const n=p.length-1;
+    if(!n) return [];
+    if(p[p.length-1]===0) return [cx(0),...polynomialRoots(p.slice(0,-1))];
+    if(n===1) return [cx(-p[1]/p[0])];
+    if(n===2) {
+      const [a,b,c]=p, d=b*b-4*a*c;
+      if(d<0) return [cx(-b/(2*a),Math.sqrt(-d)/(2*Math.abs(a))),cx(-b/(2*a),-Math.sqrt(-d)/(2*Math.abs(a)))];
+      const q=-0.5*(b+(b>=0?1:-1)*Math.sqrt(d));
+      return q===0 ? [cx(0),cx(0)] : [cx(q/a),cx(c/q)];
+    }
+    // Scale the root variable before Aberth iteration to limit coefficient spread.
+    const monic=p.map(v=>v/p[0]);
+    const radius=Math.max(1,...monic.slice(1).map((v,i)=>Math.pow(Math.abs(v),1/(i+1))));
+    const q=monic.map((v,i)=>v/Math.pow(radius,i));
+    const dq=q.slice(0,-1).map((v,i)=>v*(n-i));
+    let roots=Array.from({length:n},(_,i)=>cx(1.2*Math.cos(2*Math.PI*(i+0.27)/n),1.2*Math.sin(2*Math.PI*(i+0.27)/n)));
+    for(let iter=0;iter<700;iter++) {
+      let maxStep=0;
+      roots=roots.map((z,i)=> {
+        const f=evaluate(q,z), df=evaluate(dq,z);
+        if(abs(f)<1e-15) return z;
+        if(abs(df)<1e-20) return add(z,cx(1e-8,1e-8));
+        const newton=div(f,df);
+        let sum=cx();
+        roots.forEach((other,j)=> { if(i!==j) { const delta=sub(z,other); if(abs(delta)>1e-20) sum=add(sum,div(cx(1),delta)); } });
+        const den=sub(cx(1),mul(newton,sum));
+        const step=abs(den)>1e-20?div(newton,den):newton;
+        maxStep=Math.max(maxStep,abs(step));
+        return sub(z,step);
+      });
+      if(maxStep<1e-12) break;
+    }
+    return roots.map(z=>cx(z.re*radius,Math.abs(z.im*radius)<1e-8?0:z.im*radius)).sort((a,b)=>a.re-b.re || a.im-b.im);
+  }
+  function validate(raw) {
+    const p={...defaults,...raw};
+    for(const key of Object.keys(defaults)) if(!Number.isFinite(p[key])) throw Error(`${key} must be finite.`);
+    for(const key of ['m','b','k','tf','ts','limit','duration','locusMax']) if(p[key]<=0) throw Error(`${key} must be positive.`);
+    for(const key of ['kp','ki','kd','g']) if(p[key]<0) throw Error(`${key} must be nonnegative.`);
+    if(p.ts<0.001 || p.ts>0.2) throw Error('Sample period must be 0.001–0.2 s.');
+    if(p.duration>120) throw Error('Run duration is limited to 120 s.');
+    if(p.logMin>=p.logMax || p.logMin < -5 || p.logMax > 6) throw Error('Frequency exponents must increase within −5 to 6.');
+    if(p.m<0.02 || p.b>100 || p.k>1000 || p.kp>10000 || p.ki>10000 || p.kd>1000 || p.tf<0.001 || p.g>1000 || p.locusMax>1000) throw Error('Parameters exceed the educational model bounds.');
+    return p;
+  }
+  function controller(p) {
+    // Only include states for terms that actually exist. A disabled D term has no filter pole.
+    if(p.kd>0 && p.ki>0) return {num:trim([p.kp*p.tf+p.kd,p.kp+p.ki*p.tf,p.ki]),den:[p.tf,1,0]};
+    if(p.kd>0) return {num:trim([p.kp*p.tf+p.kd,p.kp]),den:[p.tf,1]};
+    if(p.ki>0) return {num:trim([p.kp,p.ki]),den:[1,0]};
+    return {num:[p.kp],den:[1]};
+  }
+  function convolution(a,b) { const c=Array(a.length+b.length-1).fill(0); a.forEach((x,i)=>b.forEach((y,j)=>c[i+j]+=x*y)); return c; }
+  function characteristic(p,g=p.g) {
+    const c=controller(p), den=convolution([p.m,p.b,p.k],c.den), out=den.slice(), offset=den.length-c.num.length;
+    c.num.forEach((v,i)=>out[i+offset]+=g*v);
+    return trim(out);
+  }
+  const poles = (p,g=p.g) => polynomialRoots(characteristic(p,g));
+  function poleStatus(roots) { const right=Math.max(...roots.map(r=>r.re)); return right>1e-7?'unstable':right < -1e-7?'stable':'boundary / numerically near boundary'; }
+  function loop(p,w,g=p.g) {
+    const s=cx(0,w), c=controller(p);
+    return scale(div(evaluate(c.num,s),mul(evaluate(c.den,s),evaluate([p.m,p.b,p.k],s))),g);
+  }
+  function frequency(p,n=600) {
+    let previous=0;
+    return Array.from({length:n},(_,i)=> {
+      const w=Math.pow(10,p.logMin+(p.logMax-p.logMin)*i/(n-1)), z=loop(p,w), magnitude=abs(z);
+      let phase=Math.atan2(z.im,z.re)*180/Math.PI;
+      if(i) { while(phase-previous>180) phase-=360; while(phase-previous < -180) phase+=360; }
+      previous=phase;
+      return {omega:w,re:z.re,im:z.im,magnitude: magnitude?20*Math.log10(magnitude):null,phase:magnitude?phase:null};
+    });
+  }
+  function margins(data) {
+    const gainCrossings=[],phaseCrossings=[];
+    for(let i=1;i<data.length;i++) {
+      const a=data[i-1], b=data[i];
+      if(a.magnitude===null || b.magnitude===null) continue;
+      const interpolate=(t,key)=>a[key]+t*(b[key]-a[key]);
+      const omega=t=>Math.exp(Math.log(a.omega)+t*Math.log(b.omega/a.omega));
+      if(a.magnitude!==b.magnitude && ((a.magnitude>=0 && b.magnitude<0)||(a.magnitude<=0 && b.magnitude>0)||(i===data.length-1 && b.magnitude===0))) {
+        const t=-a.magnitude/(b.magnitude-a.magnitude), phase=interpolate(t,'phase');
+        gainCrossings.push({omega:omega(t),phase,phaseMargin:180+phase});
+      }
+      for(let level=-900;level<=900;level+=360) if(a.phase!==b.phase && ((a.phase>=level && b.phase<level)||(a.phase<=level && b.phase>level)||(i===data.length-1 && b.phase===level))) {
+        const t=(level-a.phase)/(b.phase-a.phase);
+        phaseCrossings.push({omega:omega(t),phase:level,gainMarginDb:-interpolate(t,'magnitude')});
+      }
+    }
+    return {gainCrossings,phaseCrossings,note:'Interpolated finite-range crossings; all detected crossings are listed. Missing crossings do not prove infinite margin. Margins alone do not prove stability.'};
+  }
+  function rootLocus(p,n=181) {
+    const max=Math.max(p.locusMax,p.g), open=poles(p,0), rows=[];
+    for(let i=0;i<n;i++) {
+      // Quadratic gain spacing gives useful resolution near the origin.
+      const g=max*Math.pow(i/(n-1),2), rr=poles(p,g);
+      rows.push({g,poles:rr});
+    }
+    return {rows,open,zeros:polynomialRoots(controller(p).num),current:poles(p),max};
+  }
+  class Simulation {
+    constructor(raw) { this.p=validate(raw); this.t=0; this.steps=0; this.x=0; this.v=0; this.integral=0; this.derivative=0; this.prevX=0; this.u=0; this.data=[]; this.failed=null; this.sample(); this.record(); }
+    sample() {
+      const p=this.p, error=p.target-this.x;
+      if(p.kd>0) { const a=Math.exp(-p.ts/p.tf); this.derivative=a*this.derivative+(1-a)*(this.x-this.prevX)/p.ts; }
+      else this.derivative=0;
+      this.prevX=this.x;
+      const raw=p.g*(p.kp*error+this.integral-p.kd*this.derivative);
+      this.u=clamp(raw,-p.limit,p.limit);
+      // Conditional integration: freeze while the error would push further into saturation.
+      const pushing=(raw>=p.limit && error>0)||(raw<=-p.limit && error<0);
+      if(p.ki>0 && p.g>0 && !pushing) this.integral+=p.ki*error*p.ts;
+    }
+    record() { const p=this.p; this.data.push({t:this.t,x:this.x,v:this.v,a:(this.u+p.disturbance-p.b*this.v-p.k*this.x)/p.m,u:this.u,error:p.target-this.x,integral:this.integral,derivative:this.derivative,energy:0.5*p.m*this.v*this.v+0.5*p.k*this.x*this.x,target:p.target}); }
+    step() {
+      if(this.failed || this.t>=this.p.duration-1e-10) return false;
+      const p=this.p, count=Math.max(4,Math.ceil(p.ts/Math.min(0.0025,0.1/Math.max(Math.sqrt(p.k/p.m),p.b/p.m)))), h=p.ts/count;
+      const f=(x,v)=>[v,(this.u+p.disturbance-p.b*v-p.k*x)/p.m];
+      for(let j=0;j<count;j++) {
+        const a=f(this.x,this.v), b=f(this.x+h*a[0]/2,this.v+h*a[1]/2),c=f(this.x+h*b[0]/2,this.v+h*b[1]/2),d=f(this.x+h*c[0],this.v+h*c[1]);
+        this.x+=h*(a[0]+2*b[0]+2*c[0]+d[0])/6; this.v+=h*(a[1]+2*b[1]+2*c[1]+d[1])/6;
+      }
+      this.steps++; this.t=this.steps*p.ts;
+      if(!Number.isFinite(this.x) || !Number.isFinite(this.v) || Math.abs(this.x)>1e5 || Math.abs(this.v)>1e6) { this.failed='Model exceeded the numerical display envelope; run stopped.'; return false; }
+      this.sample(); this.record(); return true;
+    }
+    run() { while(this.step()) {} return this.data; }
+  }
+  function arm({yaw=25,shoulder=30,elbow=-55,l1=1.2,l2=0.9,base=0.25}) {
+    const y=yaw*Math.PI/180,s=shoulder*Math.PI/180,e=elbow*Math.PI/180;
+    const point=(r,z)=>[r*Math.cos(y),r*Math.sin(y),z];
+    return [[0,0,0],[0,0,base],point(l1*Math.cos(s),base+l1*Math.sin(s)),point(l1*Math.cos(s)+l2*Math.cos(s+e),base+l1*Math.sin(s)+l2*Math.sin(s+e))];
+  }
+  return {defaults,units,cx,add,sub,mul,div,abs,evaluate,polynomialRoots,validate,controller,characteristic,poles,poleStatus,loop,frequency,margins,rootLocus,Simulation,arm,clamp};
+}));
+
+</script><script>
+/* Dependency-free OpenUSD USDA writer for this lab's kinematic arm. MIT. */
+/* Syntax: https://openusd.org/release/tut_xforms.html and UsdGeom schemas. */
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.MechUSD=api;}(typeof globalThis!=='undefined'?globalThis:this,function(){
+  'use strict';
+  const defaults={yaw:25,shoulder:30,elbow:-55,l1:1.2,l2:.9,base:.25};
+  function finite(value,label){if(typeof value!=='number'||!Number.isFinite(value))throw Error(`${label} must be a finite number.`);return value;}
+  function validateParameters(raw){const p={...raw};for(const key of ['yaw','shoulder','elbow','l1','l2','base'])finite(p[key],key);for(const key of ['l1','l2','base'])if(p[key]<=0)throw Error(`${key} must be positive.`);return p;}
+  const number=value=>{finite(value,'USD numeric value');return Object.is(value,-0)?'0':String(value);};
+  const tuple=values=>'('+values.map(number).join(', ')+')';
+  function validateOptions(raw={}){const timeCodesPerSecond=raw.timeCodesPerSecond===undefined?60:finite(raw.timeCodesPerSecond,'timeCodesPerSecond');if(timeCodesPerSecond<=0)throw Error('timeCodesPerSecond must be positive.');return {timeCodesPerSecond,includePath:raw.includePath!==false};}
+  function validateSamples(samples,options){if(!Array.isArray(samples)||samples.length<2)throw Error('Animation requires at least two recorded joint samples.');let previous=-Infinity;return samples.map((sample,index)=>{const out={};for(const key of ['t','yaw','shoulder','elbow'])out[key]=finite(sample[key],`sample ${index} ${key}`);if(out.t<0)throw Error('Sample time must be nonnegative.');out.timeCode=finite(out.t*options.timeCodesPerSecond,`sample ${index} time code`);if(out.timeCode<=previous)throw Error('Sample time codes must be strictly increasing and distinct.');previous=out.timeCode;return out;});}
+  function toolPosition(p,q=p){const yaw=q.yaw*Math.PI/180,shoulder=q.shoulder*Math.PI/180,elbow=q.elbow*Math.PI/180,r=p.l1*Math.cos(shoulder)+p.l2*Math.cos(shoulder+elbow);return [r*Math.cos(yaw),r*Math.sin(yaw),p.base+p.l1*Math.sin(shoulder)+p.l2*Math.sin(shoulder+elbow)];}
+  function rotation(name,value,key,sign,samples,indent){const pad=' '.repeat(indent),lines=[`${pad}double xformOp:${name} = ${number(value)}`];if(samples)lines.push(`${pad}double xformOp:${name}.timeSamples = {`,...samples.map(q=>`${pad}    ${number(q.timeCode)}: ${number(sign*q[key])},`),`${pad}}`);return lines.join('\n');}
+  function cube(name,translation,dimensions,color,indent){const pad=' '.repeat(indent);return `${pad}def Cube "${name}"
+${pad}{
+${pad}    double size = 1
+${pad}    color3f[] primvars:displayColor = [${tuple(color)}]
+${pad}    double3 xformOp:translate = ${tuple(translation)}
+${pad}    double3 xformOp:scale = ${tuple(dimensions)}
+${pad}    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+${pad}}`;}
+  function sphere(name,radius,color,indent){const pad=' '.repeat(indent);return `${pad}def Sphere "${name}"
+${pad}{
+${pad}    double radius = ${number(radius)}
+${pad}    color3f[] primvars:displayColor = [${tuple(color)}]
+${pad}}`;}
+  function pathGeometry(p,samples){return `    def BasisCurves "ToolPath"
+    {
+        custom string mechatronics:scope = "Static display of the complete recorded end-effector path; not a collision or motion constraint."
+        uniform token type = "linear"
+        uniform token wrap = "nonperiodic"
+        int[] curveVertexCounts = [${samples.length}]
+        point3f[] points = [${samples.map(q=>tuple(toolPosition(p,q))).join(', ')}]
+        float[] widths = [0.012] (
+            interpolation = "constant"
+        )
+        color3f[] primvars:displayColor = [(0.325, 0.85, 0.82)]
+    }
+`;}
+  function scene(p,samples,options){const start=samples?samples[0].timeCode:0,end=samples?samples[samples.length-1].timeCode:0;return `#usda 1.0
+(
+    defaultPrim = "Robot"
+    metersPerUnit = 1
+    upAxis = "Z"
+    timeCodesPerSecond = ${number(options.timeCodesPerSecond)}
+    framesPerSecond = ${number(options.timeCodesPerSecond)}
+    startTimeCode = ${number(start)}
+    endTimeCode = ${number(end)}
+    customLayerData = {
+        string mechatronicsEvidence = "Illustrative kinematic visual scene. No mass, inertia, collision, articulation physics, controller execution, or hardware validation."
+        string mechatronicsSchema = "mechatronics-browser-lab-usda/v1"
+        string coordinateConvention = "Right-handed; Z up; metres; joint angles in degrees."
+        string animationScope = "${samples?'Recorded sampled joint angles; USD viewers interpolate between samples. Static ToolPath, when present, shows the complete recorded path.':'Current static arm pose; no sampled animation.'}"
+    }
+)
+
+def Xform "Robot"
+{
+    custom string mechatronics:model = "Base yaw plus shoulder and relative elbow pitch; link geometry only."
+    custom double mechatronics:upperLinkMetres = ${number(p.l1)}
+    custom double mechatronics:forearmMetres = ${number(p.l2)}
+    custom double mechatronics:baseHeightMetres = ${number(p.base)}
+${cube('Base',[0,0,p.base/2],[.3,.3,p.base],[.36,.44,.53],4)}
+${samples&&options.includePath?pathGeometry(p,samples):''}
+    def Xform "YawJoint"
+    {
+        double3 xformOp:translate = ${tuple([0,0,p.base])}
+${rotation('rotateZ',p.yaw,'yaw',1,samples,8)}
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+
+        def Xform "ShoulderJoint"
+        {
+${rotation('rotateY',-p.shoulder,'shoulder',-1,samples,12)}
+            uniform token[] xformOpOrder = ["xformOp:rotateY"]
+${sphere('ShoulderVisual',.105,[.65,.71,.77],12)}
+${cube('UpperLink',[p.l1/2,0,0],[p.l1,.13,.13],[.325,.85,.82],12)}
+
+            def Xform "ElbowJoint"
+            {
+                double3 xformOp:translate = ${tuple([p.l1,0,0])}
+${rotation('rotateY',-p.elbow,'elbow',-1,samples,16)}
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+${sphere('ElbowVisual',.105,[.65,.71,.77],16)}
+${cube('Forearm',[p.l2/2,0,0],[p.l2,.11,.11],[.67,.61,1],16)}
+
+                def Xform "Tool"
+                {
+                    double3 xformOp:translate = ${tuple([p.l2,0,0])}
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+${sphere('ToolVisual',.075,[.97,.75,.4],20)}
+                }
+            }
+        }
+    }
+}
+`;}
+  function exportPose(parameters=defaults,rawOptions={}){return scene(validateParameters(parameters),null,validateOptions(rawOptions));}
+  function exportAnimation(parameters,samples,rawOptions={}){const p=validateParameters(parameters),options=validateOptions(rawOptions);return scene(p,validateSamples(samples,options),options);}
+  return {exportPose,exportAnimation,validateParameters,toolPosition};
+}));
+
+</script><script>
+/* Offline presentation layer. The numerical simulation does not use frame delta as its integration step. */
+(function () {
+  'use strict';
+  const M=window.MechMath,$=id=>document.getElementById(id),colors={cyan:'#53d9d1',amber:'#f7be66',violet:'#ab9bff',muted:'#8297ae',red:'#f18290',green:'#9ad89a'};
+  let p={...M.defaults},sim=new M.Simulation(p),running=false,activeTab='dynamics',lastFrame=null,accumulator=0,lastDraw=0,analysis={};
+  const chartState=new WeakMap(),tooltip=$('tooltip');
+  const fmt=(v,d=3)=> !Number.isFinite(v)?'—':(Math.abs(v)>=1e4||(Math.abs(v)>0&&Math.abs(v)<.001))?v.toExponential(2):v.toFixed(d);
+  const compact=v=>Math.abs(v)>=1000||Math.abs(v)>0&&Math.abs(v)<.01?v.toExponential(1):Number(v.toPrecision(3)).toString();
+  function prepare(canvas) {
+    const r=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+    if(!r.width||!r.height) return null;
+    const w=Math.round(r.width*dpr),h=Math.round(r.height*dpr);
+    if(canvas.width!==w||canvas.height!==h) {canvas.width=w;canvas.height=h;}
+    const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,r.width,r.height);
+    return {c,w:r.width,h:r.height};
+  }
+  const range=(values,pad=.12)=> { const finite=values.filter(Number.isFinite); if(!finite.length)return [-1,1];let lo=Math.min(...finite),hi=Math.max(...finite);if(hi-lo<1e-8){lo-=1;hi+=1;}const d=(hi-lo)*pad;return [lo-d,hi+d]; };
+  function plot(id,series,opts={}) {
+    const canvas=$(id),view=prepare(canvas);if(!view)return;
+    const {c,w,h}=view,rect={x:59,y:15,w:w-76,h:h-52};if(rect.w<30)return;
+    const points=series.flatMap(s=>s.data).filter(q=>Number.isFinite(q.x)&&Number.isFinite(q.y));
+    let xr=opts.xRange||range(points.map(q=>q.x)),yr=opts.yRange||range(points.map(q=>q.y));
+    if(opts.equal) {const middle=(yr[0]+yr[1])/2,half=(xr[1]-xr[0])*rect.h/rect.w/2;yr=[middle-half,middle+half];}
+    const px=x=>rect.x+(x-xr[0])/(xr[1]-xr[0])*rect.w,py=y=>rect.y+rect.h-(y-yr[0])/(yr[1]-yr[0])*rect.h;
+    c.font='10px system-ui';c.lineWidth=1;
+    for(let i=0;i<=4;i++) {const x=xr[0]+(xr[1]-xr[0])*i/4,y=yr[0]+(yr[1]-yr[0])*i/4;
+      c.strokeStyle='#273345';c.beginPath();c.moveTo(px(x),rect.y);c.lineTo(px(x),rect.y+rect.h);c.stroke();c.beginPath();c.moveTo(rect.x,py(y));c.lineTo(rect.x+rect.w,py(y));c.stroke();
+      c.fillStyle='#8da1b9';c.textAlign='center';c.fillText(opts.xFormat?opts.xFormat(x):compact(x),px(x),rect.y+rect.h+16);c.textAlign='right';c.fillText(compact(y),rect.x-8,py(y)+3);
+    }
+    c.save();c.beginPath();c.rect(rect.x,rect.y,rect.w,rect.h);c.clip();
+    (opts.hLines||[]).forEach(y=>{c.strokeStyle='#9a927655';c.setLineDash([4,5]);c.beginPath();c.moveTo(rect.x,py(y));c.lineTo(rect.x+rect.w,py(y));c.stroke();c.setLineDash([]);});
+    (opts.vLines||[]).forEach(x=>{c.strokeStyle='#9a927655';c.setLineDash([4,5]);c.beginPath();c.moveTo(px(x),rect.y);c.lineTo(px(x),rect.y+rect.h);c.stroke();c.setLineDash([]);});
+    const hover=[];
+    series.forEach(s=> {
+      c.strokeStyle=s.color;c.fillStyle=s.color;c.lineWidth=s.width||1.7;c.setLineDash(s.dashed?[5,4]:[]);
+      if(!s.marker) {c.beginPath();let started=false;s.data.forEach(q=>{if(!Number.isFinite(q.y)||!Number.isFinite(q.x)){started=false;return;}if(!started)c.moveTo(px(q.x),py(q.y));else c.lineTo(px(q.x),py(q.y));started=true;});c.stroke();}
+      s.data.forEach((q,i)=> {if(!Number.isFinite(q.x)||!Number.isFinite(q.y))return;const x=px(q.x),y=py(q.y),size=s.size||4;
+        if(s.marker) {c.beginPath();if(s.marker==='x'){c.moveTo(x-size,y-size);c.lineTo(x+size,y+size);c.moveTo(x-size,y+size);c.lineTo(x+size,y-size);}else if(s.marker==='+'){c.moveTo(x-size,y);c.lineTo(x+size,y);c.moveTo(x,y-size);c.lineTo(x,y+size);}else {c.arc(x,y,size,0,Math.PI*2);}if(s.marker==='dot')c.fill();else c.stroke();}
+        if(x>=rect.x&&x<=rect.x+rect.w&&y>=rect.y&&y<=rect.y+rect.h)hover.push({x,y,label:s.label,text:q.tip||`${s.label}\n${opts.xLabel||'x'}: ${fmt(q.x)}\n${opts.yLabel||'y'}: ${fmt(q.y)}`});
+        if(s.arrows&&i>0&&i%65===0){const prev=s.data[i-1],dx=x-px(prev.x),dy=y-py(prev.y),a=Math.atan2(dy,dx);c.save();c.translate(x,y);c.rotate(a);c.beginPath();c.moveTo(-7,-3);c.lineTo(0,0);c.lineTo(-7,3);c.stroke();c.restore();}
+      });c.setLineDash([]);
+    });c.restore();
+    c.fillStyle='#a9b8cb';c.textAlign='center';c.font='10px system-ui';c.fillText(opts.xLabel||'',rect.x+rect.w/2,h-3);c.save();c.translate(12,rect.y+rect.h/2);c.rotate(-Math.PI/2);c.fillText(opts.yLabel||'',0,0);c.restore();
+    chartState.set(canvas,hover);
+    if(!canvas.dataset.hoverReady) {canvas.dataset.hoverReady='true';canvas.addEventListener('pointermove',event=> {const rr=canvas.getBoundingClientRect(),x=event.clientX-rr.left,y=event.clientY-rr.top,hh=chartState.get(canvas)||[];let best=null,dist=625;hh.forEach(q=>{const d=(q.x-x)**2+(q.y-y)**2;if(d<dist){dist=d;best=q;}});if(!best){tooltip.hidden=true;return;}tooltip.textContent=best.text;tooltip.hidden=false;const tw=tooltip.offsetWidth,th=tooltip.offsetHeight;tooltip.style.left=Math.min(window.innerWidth-tw-8,event.clientX+14)+'px';tooltip.style.top=Math.max(8,Math.min(window.innerHeight-th-8,event.clientY+14))+'px';});canvas.addEventListener('pointerleave',()=>tooltip.hidden=true);}
+  }
+  function download(name,content,type) {const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  const evidence={classification:'illustrative model simulation; no hardware validation',continuousAnalysis:'Ideal continuous-time negative unity-feedback L(s)=C(s)G(s); excludes sampling, saturation, delay and disturbances. Derivative-on-measurement changes setpoint numerator but not feedback denominator.',sampledSimulation:'Fixed controller sample clock; derivative on measurement with exponential filtering; conditional integral anti-windup; saturated force held between updates; RK4 plant integration.',nyquist:'Finite positive/negative frequency trace only, not a completed contour or encirclement proof. Clockwise-positive complete-contour convention: Z=P+N.',margins:'Finite-grid interpolated crossing estimates; missing or multiple crossings must not be reduced to a fabricated single verdict.'};
+  function refreshAnalysis() {
+    const freq=M.frequency(p),locus=M.rootLocus(p),margins=M.margins(freq),status=M.poleStatus(locus.current);
+    analysis={frequency:freq,rootLocus:locus,margins,continuousPoles:locus.current,continuousPoleStatus:status,characteristicPolynomialDescending:M.characteristic(p)};
+    $('pole-status').textContent=status.toUpperCase();$('pole-status').className='chip '+(status==='stable'?'stable':status==='unstable'?'unstable':'');
+    $('pole-summary').textContent=`Current g = ${fmt(p.g,2)} · pole real parts in s⁻¹\n`+locus.current.map(r=>`${fmt(r.re)} ${r.im<0?'−':'+'} j${fmt(Math.abs(r.im))}`).join('  |  ');
+    const lines=[];
+    if(margins.gainCrossings.length) margins.gainCrossings.forEach((r,i)=>lines.push(`Gain crossing ${i+1}: ω = ${fmt(r.omega)} rad/s; PM = ${fmt(r.phaseMargin,1)}°`));else lines.push('0 dB crossing: not found in displayed range.');
+    if(margins.phaseCrossings.length)margins.phaseCrossings.forEach((r,i)=>lines.push(`Phase crossing ${i+1}: ω = ${fmt(r.omega)} rad/s; GM = ${fmt(r.gainMarginDb,1)} dB`));else lines.push('−180° (mod 360°) crossing: not found in displayed range.');
+    $('margin-summary').textContent=lines.join('\n');$('margin-summary').style.whiteSpace='pre-line';
+    $('nyquist-warning').textContent=p.ki>0?'Ki > 0 introduces an imaginary-axis pole at s = 0. The plotted frequency range omits the origin indentation, the high-frequency closure, and limiting tails. No completed-contour stability proof is shown.':'The trace samples a finite frequency interval. Closure and limiting tails are not constructed; no completed-contour stability proof is shown.';
+    drawAnalysis();
+  }
+  function drawAnalysis() {
+    if(activeTab!=='dynamics')return;const {frequency:f,rootLocus:l}=analysis;if(!f)return;
+    const rootTip=(r,g)=>`Gain g: ${fmt(g,3)}\nPole: ${fmt(r.re)} ${r.im<0?'−':'+'} j${fmt(Math.abs(r.im))} s⁻¹`;
+    plot('root-chart',[{label:'Locus sample',color:colors.cyan,marker:'dot',size:1.5,data:l.rows.flatMap(row=>row.poles.map(r=>({x:r.re,y:r.im,tip:rootTip(r,row.g)})))},{label:'Open-loop pole',color:colors.muted,marker:'+',size:6,data:l.open.map(r=>({x:r.re,y:r.im,tip:'Open-loop pole at g = 0\n'+rootTip(r,0)}))},{label:'Controller zero',color:colors.violet,marker:'circle',size:5,data:l.zeros.map(r=>({x:r.re,y:r.im,tip:`Controller zero\n${fmt(r.re)} ${r.im<0?'−':'+'} j${fmt(Math.abs(r.im))} s⁻¹`}))},{label:'Current pole',color:colors.amber,marker:'x',size:6,width:2.4,data:l.current.map(r=>({x:r.re,y:r.im,tip:rootTip(r,p.g)}))}],{xLabel:'Real part σ / s⁻¹',yLabel:'Imaginary part ω / s⁻¹',hLines:[0],vLines:[0],xRange:range([...l.rows.flatMap(r=>r.poles.map(z=>z.re)),...l.zeros.map(z=>z.re),0])});
+    const freqSeries=key=>f.map(q=>({x:Math.log10(q.omega),y:q[key],tip:`ω: ${fmt(q.omega)} rad/s\n|L|: ${fmt(q.magnitude,2)} dB\nPhase: ${fmt(q.phase,2)}°\nL: ${fmt(q.re)} ${q.im<0?'−':'+'} j${fmt(Math.abs(q.im))}`}));
+    plot('bode-mag',[{label:'Loop magnitude',color:colors.cyan,data:freqSeries('magnitude')}],{xLabel:'Frequency ω / rad·s⁻¹ (log scale)',yLabel:'Magnitude / dB',xRange:[p.logMin,p.logMax],xFormat:v=>compact(10**v),hLines:[0]});
+    plot('bode-phase',[{label:'Unwrapped loop phase',color:colors.violet,data:freqSeries('phase')}],{xLabel:'Frequency ω / rad·s⁻¹ (log scale)',yLabel:'Phase / °',xRange:[p.logMin,p.logMax],xFormat:v=>compact(10**v),hLines:[-180]});
+    const pos=f.map(q=>({x:q.re,y:q.im,tip:`+ω: ${fmt(q.omega)} rad/s\nRe(L): ${fmt(q.re)}\nIm(L): ${fmt(q.im)}`})),neg=f.map(q=>({x:q.re,y:-q.im,tip:`−ω: ${fmt(-q.omega)} rad/s\nRe(L): ${fmt(q.re)}\nIm(L): ${fmt(-q.im)}`}));
+    const focus=$('nyquist-focus').checked,xrange=focus?[-3,1.5]:range([...pos.map(q=>q.x),-1,0]),yrange=focus?[-2,2]:range([...pos.map(q=>q.y),...neg.map(q=>q.y),0]);
+    // Equal horizontal and vertical scale; expand either dimension to fit the full finite trace.
+    const canvas=$('nyquist-chart'),r=canvas.getBoundingClientRect(),aspect=Math.max(.3,(r.width-76)/(r.height-52));let xr=xrange.slice(),yr=yrange.slice();
+    if(!focus && (yr[1]-yr[0])>(xr[1]-xr[0])/aspect){const mid=(xr[0]+xr[1])/2,half=(yr[1]-yr[0])*aspect/2;xr=[mid-half,mid+half];}
+    plot('nyquist-chart',[{label:'Positive frequency',color:colors.cyan,data:pos,arrows:true},{label:'Negative frequency',color:colors.violet,data:neg,arrows:true},{label:'Critical point',color:colors.amber,marker:'x',size:7,width:2,data:[{x:-1,y:0,tip:'Critical point: −1 + j0\nDimensionless loop response'}]}],{xLabel:'Real L(jω) / dimensionless',yLabel:'Imaginary L(jω) / dimensionless',xRange:xr,yRange:yr,equal:true,hLines:[0],vLines:[0]});
+  }
+  function drawMechanism() {
+    const view=prepare($('mechanism'));if(!view)return;const {c,w,h}=view;
+    const span=Math.max(1.5,Math.abs(p.target)*1.2,Math.abs(sim.x)*1.2),origin=w*.53,scale=(w*.29)/span,position=origin+sim.x*scale,target=origin+p.target*scale,wall=22,cy=h*.43,block=54;
+    c.fillStyle='#101925';c.fillRect(0,0,w,h);c.strokeStyle='#253548';c.lineWidth=1;
+    for(let x=20;x<w;x+=30){c.beginPath();c.moveTo(x,20);c.lineTo(x,h-25);c.stroke();}for(let y=20;y<h-20;y+=30){c.beginPath();c.moveTo(20,y);c.lineTo(w-10,y);c.stroke();}
+    c.strokeStyle='#6c8098';c.lineWidth=3;c.beginPath();c.moveTo(wall,cy-53);c.lineTo(wall,cy+56);c.moveTo(15,cy+65);c.lineTo(w-12,cy+65);c.stroke();
+    c.setLineDash([4,5]);c.strokeStyle=colors.amber;c.lineWidth=1;c.beginPath();c.moveTo(target,cy-58);c.lineTo(target,cy+66);c.stroke();c.setLineDash([]);
+    c.fillStyle=colors.amber;c.textAlign='center';c.font='10px system-ui';c.fillText(`target ${fmt(p.target,2)} m`,M.clamp(target,65,w-65),cy-68);
+    const end=position-block/2,start=wall+12,length=end-start,sy=cy-15;
+    c.strokeStyle=colors.cyan;c.lineWidth=2;c.beginPath();c.moveTo(wall,sy);c.lineTo(start,sy);for(let i=0;i<=18;i++){const x=start+length*i/18,y=sy+(i===0||i===18?0:(i%2?9:-9));c.lineTo(x,y);}c.lineTo(end,sy);c.stroke();
+    const dy=cy+19,mid=(wall+end)/2;c.strokeStyle=colors.violet;c.beginPath();c.moveTo(wall,dy);c.lineTo(mid-16,dy);c.moveTo(mid+17,dy);c.lineTo(end,dy);c.moveTo(mid+17,dy-9);c.lineTo(mid-16,dy-9);c.lineTo(mid-16,dy+9);c.lineTo(mid+17,dy+9);c.moveTo(mid+4,dy-7);c.lineTo(mid+4,dy+7);c.stroke();
+    c.fillStyle='#224b58';c.strokeStyle=colors.cyan;c.lineWidth=1.5;c.fillRect(position-block/2,cy-39,block,79);c.strokeRect(position-block/2,cy-39,block,79);c.fillStyle='#def8f7';c.font='bold 13px system-ui';c.textAlign='center';c.fillText(`${compact(p.m)} kg`,position,cy+3);
+    c.fillStyle='#0c121b';[position-15,position+15].forEach(x=>{c.beginPath();c.arc(x,cy+53,10,0,Math.PI*2);c.fill();c.stroke();});
+    const forceLength=Math.min(55,Math.abs(sim.u)/p.limit*55),direction=Math.sign(sim.u);c.strokeStyle=colors.amber;c.fillStyle=colors.amber;c.lineWidth=2;
+    if(forceLength>1){const ax=position+direction*(block/2+7),bx=ax+direction*forceLength;c.beginPath();c.moveTo(ax,cy);c.lineTo(bx,cy);c.lineTo(bx-direction*7,cy-4);c.moveTo(bx,cy);c.lineTo(bx-direction*7,cy+4);c.stroke();}
+    c.font='10px system-ui';c.textAlign='left';c.fillStyle=colors.cyan;c.fillText(`k = ${compact(p.k)} N/m`,30,h-29);c.fillStyle=colors.violet;c.fillText(`b = ${compact(p.b)} N·s/m`,30,h-13);c.textAlign='right';c.fillStyle='#95a8bd';c.fillText('Schematic: travel rescales with motion',w-10,h-13);
+  }
+  function drawTime() {
+    if(activeTab!=='dynamics')return;const last=sim.data[sim.data.length-1],stride=Math.max(1,Math.floor(sim.data.length/1400)),rows=sim.data.filter((_,i)=>i%stride===0||i===sim.data.length-1),xrange=[0,Math.max(5,sim.t)];
+    $('time').innerHTML=fmt(sim.t,2)+' <small>s</small>';$('position').innerHTML=fmt(sim.x)+' <small>m</small>';$('force').innerHTML=fmt(sim.u,2)+' <small>N</small>';$('energy').innerHTML=fmt(last.energy)+' <small>J</small>';
+    plot('time-chart',[{label:'Position',color:colors.cyan,data:rows.map(r=>({x:r.t,y:r.x,tip:`t: ${fmt(r.t)} s\nx: ${fmt(r.x)} m\nv: ${fmt(r.v)} m/s\nerror: ${fmt(r.error)} m`}))},{label:'Target',color:colors.amber,dashed:true,data:[{x:0,y:p.target},{x:xrange[1],y:p.target}]}],{xLabel:'Simulated time / s',yLabel:'Position / m',xRange:xrange});
+    plot('force-chart',[{label:'Actuator force',color:colors.violet,data:rows.map(r=>({x:r.t,y:r.u,tip:`t: ${fmt(r.t)} s\nu: ${fmt(r.u)} N\nlimit: ±${fmt(p.limit)} N`}))}],{xLabel:'Simulated time / s',yLabel:'Force / N',xRange:xrange,yRange:[-p.limit*1.12,p.limit*1.12],hLines:[-p.limit,p.limit,0]});drawMechanism();
+  }
+  function setRunning(value) {running=value;$('play').textContent=value?'Ⅱ Pause':'▶ Run experiment';$('run-status').textContent=value?'Running on fixed sample clock':sim.failed||sim.t>=p.duration?'Run complete':sim.t?'Paused':'Ready';accumulator=0;}
+  function resetSimulation() {setRunning(false);sim=new M.Simulation(p);$('run-status').textContent='Ready';drawTime();}
+  function readParams(){const next={};new FormData($('parameters')).forEach((v,k)=>next[k]=Number(v));return M.validate(next);}
+  $('parameters').addEventListener('submit',e=>e.preventDefault());
+  $('parameters').addEventListener('input',()=> {
+    try {if(!$('parameters').checkValidity())throw Error('Enter a valid number within each displayed parameter range.');p=readParams();$('error').hidden=true;$('gain-value').value=fmt(p.g,2);resetSimulation();refreshAnalysis();}
+    catch(e){setRunning(false);$('error').textContent=e.message+' The plots retain the last valid model.';$('error').hidden=false;}
+  });
+  $('defaults').addEventListener('click',()=>{p={...M.defaults};Object.entries(p).forEach(([k,v])=>$('parameters').elements.namedItem(k).value=v);$('gain-value').value=fmt(p.g,2);$('error').hidden=true;resetSimulation();refreshAnalysis();});
+  $('play').addEventListener('click',()=>{if(!$('error').hidden)return;if(sim.t>=p.duration||sim.failed)resetSimulation();setRunning(!running);});$('reset').addEventListener('click',resetSimulation);
+  $('nyquist-focus').addEventListener('change',drawAnalysis);
+  $('export-csv').addEventListener('click',()=> {const keys=Object.keys(M.units).filter(k=>k in sim.data[0]);const metadata=['# Mechatronics browser lab run; schema mechatronics-browser-lab/v1','# Evidence: illustrative numerical simulation; no hardware validation','# Parameters SI: '+JSON.stringify(p),'# Controller: sampled PID; derivative on measurement; conditional anti-windup; saturated ZOH force; RK4 plant','# Clock: t = integer sample index * Ts; exports include complete data, not chart decimation',keys.map(k=>`${k} [${M.units[k]}]`).join(',')];download('mechatronics-run.csv',metadata.concat(sim.data.map(row=>keys.map(k=>row[k]).join(','))).join('\n'),'text/csv');});
+  $('export-json').addEventListener('click',()=>download('mechatronics-model-and-data.json',JSON.stringify({schema:'mechatronics-browser-lab/v1',createdAt:new Date().toISOString(),parameters:p,parameterUnits:{m:'kg',b:'N s/m',k:'N/m',kp:'N/m',ki:'N/(m s)',kd:'N s/m',tf:'s',g:'dimensionless',ts:'s',limit:'N',target:'m',disturbance:'N',duration:'s',logMin:'log10(rad/s)',logMax:'log10(rad/s)',locusMax:'dimensionless'},units:M.units,evidence,runState:{complete:sim.t>=p.duration,failed:sim.failed},...analysis,time:sim.data},null,2),'application/json'));
+
+  // A genuine perspective projection of 3D joint/link geometry, rendered by a depth-sorted Canvas painter.
+  let armBase={yaw:25,shoulder:30,elbow:-55,l1:1.2,l2:.9,base:.25},armQ={...armBase},armRunning=false,armSteps=0,armAccumulator=0,armData=[],camera={az:.85,elev:.48,radius:6.5},drag=null;
+  const vector={add:(a,b)=>a.map((v,i)=>v+b[i]),sub:(a,b)=>a.map((v,i)=>v-b[i]),scale:(a,s)=>a.map(v=>v*s),dot:(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],normal:a=>{const n=Math.hypot(...a);return a.map(v=>v/n);}};
+  function armRecord(){const end=M.arm(armQ)[3];armData.push({t:armSteps/60,x:end[0],y:end[1],z:end[2],yaw:armQ.yaw,shoulder:armQ.shoulder,elbow:armQ.elbow});$('export-usd-animation').disabled=armData.length<2;}
+  function resetArm(){armRunning=false;armSteps=0;armAccumulator=0;armQ={...armBase};armData=[];armRecord();$('arm-motion').textContent='▶ Demonstrate joint motion';drawArm();}
+  function armStep(){armSteps++;const t=armSteps/60;armQ={...armBase,yaw:M.clamp(armBase.yaw+35*Math.sin(t*.6),-180,180),shoulder:M.clamp(armBase.shoulder+18*Math.sin(t*.9),-90,120),elbow:M.clamp(armBase.elbow+25*Math.sin(t*.75),-150,150)};armRecord();if(armSteps>=1800){armRunning=false;$('arm-motion').textContent='↺ Replay joint motion';}}
+  function drawArm() {
+    if(activeTab!=='arm')return;const view=prepare($('arm-canvas'));if(!view)return;const {c,w,h}=view,points=M.arm(armQ),end=points[3];
+    const total=armBase.l1+armBase.l2,look=[0,0,Math.max(.4,total*.25)],dir=[Math.cos(camera.elev)*Math.cos(camera.az),Math.cos(camera.elev)*Math.sin(camera.az),Math.sin(camera.elev)],right=[-Math.sin(camera.az),Math.cos(camera.az),0],up=vector.cross(dir,right),focal=Math.min(w,h)*1.3;
+    const project=point=>{const q=vector.sub(point,look),depth=camera.radius-vector.dot(q,dir);return {x:w/2+focal*vector.dot(q,right)/Math.max(.2,depth),y:h*.52-focal*vector.dot(q,up)/Math.max(.2,depth),depth};};
+    const line=(a,b,color,width=1)=>{const aa=project(a),bb=project(b);if(aa.depth<.2||bb.depth<.2)return;c.strokeStyle=color;c.lineWidth=width;c.beginPath();c.moveTo(aa.x,aa.y);c.lineTo(bb.x,bb.y);c.stroke();};
+    const bg=c.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#101e2d');bg.addColorStop(1,'#0c121d');c.fillStyle=bg;c.fillRect(0,0,w,h);
+    const grid=Math.ceil(total+1);for(let i=-grid;i<=grid;i++){line([i,-grid,0],[i,grid,0],'#263647');line([-grid,i,0],[grid,i,0],'#263647');}
+    [[[1.2,0,0],colors.red,'X'],[[0,1.2,0],colors.green,'Y'],[[0,0,1.2],colors.cyan,'Z']].forEach(([q,color,label])=>{line([0,0,0],q,color,2);const pp=project(q);c.fillStyle=color;c.font='bold 12px system-ui';c.fillText(label,pp.x+5,pp.y-5);});
+    if(armData.length>1){c.strokeStyle='#53d9d166';c.lineWidth=1.5;c.beginPath();armData.filter((_,i)=>i%3===0).forEach((q,i)=>{const pp=project([q.x,q.y,q.z]);if(!i)c.moveTo(pp.x,pp.y);else c.lineTo(pp.x,pp.y);});c.stroke();}
+    const faces=[];
+    function prism(a,b,width,color) {const axis=vector.normal(vector.sub(b,a)),u=vector.scale(vector.normal(vector.cross(axis,Math.abs(axis[2])>.9?[0,1,0]:[0,0,1])),width),v=vector.scale(vector.cross(axis,vector.normal(u)),width),corners=[];[a,b].forEach(base=>{[[1,1],[-1,1],[-1,-1],[1,-1]].forEach(([su,sv])=>corners.push(vector.add(base,vector.add(vector.scale(u,su),vector.scale(v,sv)))));});[[0,1,2,3],[4,7,6,5],[0,4,5,1],[1,5,6,2],[2,6,7,3],[3,7,4,0]].forEach((indices,i)=>{const projected=indices.map(j=>project(corners[j]));faces.push({kind:'face',points:projected,depth:projected.reduce((s,q)=>s+q.depth,0)/4,color:color[i%color.length]});});}
+    prism(points[0],points[1],.15,['#54687d','#3d5269','#718599']);prism(points[1],points[2],.065,['#39938f','#63d6cb','#2f7776']);prism(points[2],points[3],.055,['#7366ab','#afa0ec','#594d91']);
+    points.slice(1).forEach((q,i)=>{const pp=project(q);faces.push({kind:'joint',...pp,radius:focal*(i===2?.075:.105)/pp.depth});});
+    faces.sort((a,b)=>b.depth-a.depth).forEach(face=>{if(face.depth<.2)return;if(face.kind==='face'){c.beginPath();face.points.forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));c.closePath();c.fillStyle=face.color;c.fill();c.strokeStyle='#b3d7e433';c.lineWidth=1;c.stroke();}else{const gradient=c.createRadialGradient(face.x-face.radius*.3,face.y-face.radius*.3,1,face.x,face.y,face.radius);gradient.addColorStop(0,'#e6edf4');gradient.addColorStop(.45,'#8c9bae');gradient.addColorStop(1,'#334758');c.fillStyle=gradient;c.beginPath();c.arc(face.x,face.y,Math.max(1,face.radius),0,Math.PI*2);c.fill();}});
+    const tool=project(end);c.fillStyle=colors.amber;c.font='11px system-ui';c.fillText('TOOL',tool.x+13,tool.y-9);c.fillStyle='#9dafc4';c.font='10px system-ui';c.fillText('Right-handed world · Z up · distances in metres',15,h-18);
+    ['x','y','z'].forEach((key,i)=>$('tool-'+key).innerHTML=fmt(end[i])+' <small>m</small>');$('arm-time').innerHTML=fmt(armSteps/60,2)+' <small>s</small>';
+    plot('arm-chart',['x','y','z'].map((key,i)=>({label:'Tool '+key.toUpperCase(),color:[colors.red,colors.green,colors.cyan][i],data:armData.filter((_,j)=>j%2===0||j===armData.length-1).map(q=>({x:q.t,y:q[key],tip:`t: ${fmt(q.t)} s\nTool ${key.toUpperCase()}: ${fmt(q[key])} m`}))})),{xLabel:'Illustrative joint-motion time / s',yLabel:'Tool position / m',xRange:[0,Math.max(5,armSteps/60)]});
+  }
+  $('arm-parameters').addEventListener('submit',e=>e.preventDefault());$('arm-parameters').addEventListener('input',()=>{if(!$('arm-parameters').checkValidity())return;new FormData($('arm-parameters')).forEach((v,k)=>armBase[k]=Number(v));['yaw','shoulder','elbow'].forEach(k=>document.querySelector(`[data-value="${k}"]`).value=fmt(armBase[k],0)+'°');resetArm();});
+  $('arm-motion').addEventListener('click',()=>{if(armSteps>=1800)resetArm();armRunning=!armRunning;armAccumulator=0;$('arm-motion').textContent=armRunning?'Ⅱ Pause joint motion':'▶ Demonstrate joint motion';});
+  $('arm-camera').addEventListener('click',()=>{camera={az:.85,elev:.48,radius:Math.max(6.5,(armBase.l1+armBase.l2)*2.5)};drawArm();});
+  const zoom=amount=>{camera.radius=M.clamp(camera.radius*amount,2,22);drawArm();};$('zoom-in').addEventListener('click',()=>zoom(.85));$('zoom-out').addEventListener('click',()=>zoom(1.18));
+  $('arm-canvas').addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};e.currentTarget.setPointerCapture(e.pointerId);});$('arm-canvas').addEventListener('pointermove',e=>{if(!drag)return;camera.az-=(e.clientX-drag.x)*.008;camera.elev=M.clamp(camera.elev+(e.clientY-drag.y)*.008,.05,1.45);drag={x:e.clientX,y:e.clientY};drawArm();});['pointerup','pointercancel'].forEach(name=>$('arm-canvas').addEventListener(name,()=>drag=null));
+  $('arm-canvas').addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(e.deltaY*.001));},{passive:false});$('arm-canvas').addEventListener('keydown',e=>{const keys={ArrowLeft:()=>camera.az-=.12,ArrowRight:()=>camera.az+=.12,ArrowUp:()=>camera.elev=M.clamp(camera.elev+.1,.05,1.45),ArrowDown:()=>camera.elev=M.clamp(camera.elev-.1,.05,1.45),'+':()=>zoom(.85),'=':()=>zoom(.85),'-':()=>zoom(1.18)};if(keys[e.key]){e.preventDefault();keys[e.key]();drawArm();}});
+  $('export-arm').addEventListener('click',()=>download('mechatronics-arm-kinematics.json',JSON.stringify({schema:'mechatronics-arm-kinematics/v1',evidence:'Illustrative forward kinematics only. No rigid-body dynamics, torque, collision, control-loop stability or hardware validation.',coordinateConvention:'Right-handed world; Z up; yaw about Z; shoulder and relative elbow pitch in radial-Z plane.',jointMotion:'30 s bounded sinusoidal joint demonstration about entered angles; fixed 1/60 s illustrative clock; angle clamping may make this unsuitable as a physical trajectory.',baseParameters:armBase,currentParameters:armQ,currentJointPoints:M.arm(armQ),units:{t:'s',x:'m',y:'m',z:'m',yaw:'deg',shoulder:'deg',elbow:'deg',l1:'m',l2:'m',base:'m'},path:armData},null,2),'application/json'));
+  $('export-usd-pose').addEventListener('click',()=>download('mechatronics-arm-pose.usda',window.MechUSD.exportPose(armQ),'text/plain'));
+  $('export-usd-animation').addEventListener('click',()=>download('mechatronics-arm-animation.usda',window.MechUSD.exportAnimation(armBase,armData,{timeCodesPerSecond:60,includePath:true}),'text/plain'));
+  document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>{activeTab=button.dataset.tab;document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-selected',String(b===button));});document.querySelectorAll('.tab-panel').forEach(panel=>panel.classList.toggle('active',panel.id===activeTab));setRunning(false);armRunning=false;armAccumulator=0;$('arm-motion').textContent='▶ Demonstrate joint motion';tooltip.hidden=true;drawTime();drawAnalysis();drawArm();}));
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){setRunning(false);armRunning=false;$('arm-motion').textContent='▶ Demonstrate joint motion';$('run-status').textContent='Paused: browser tab hidden';}lastFrame=null;accumulator=0;armAccumulator=0;});
+  window.addEventListener('resize',()=>{drawTime();drawAnalysis();drawArm();});
+  function frame(now){const elapsed=lastFrame===null?0:Math.min(.1,(now-lastFrame)/1000);lastFrame=now;
+    if(running){accumulator+=elapsed*Number($('speed').value);let count=0;while(accumulator>=p.ts&&count<600){if(!sim.step()){setRunning(false);$('run-status').textContent=sim.failed||'Run complete';break;}accumulator-=p.ts;count++;}}
+    if(armRunning){armAccumulator+=elapsed;while(armAccumulator>=1/60&&armRunning){armStep();armAccumulator-=1/60;}}
+    if(now-lastDraw>45){if(running)drawTime();if(armRunning)drawArm();lastDraw=now;}
+    // Draw the last completed step too, after its running flag has cleared.
+    if(!running&&sim.t>=p.duration&&$('time').textContent.trim().split(' ')[0]!==fmt(sim.t,2))drawTime();
+    if(armSteps===1800 && parseFloat($('arm-time').textContent)!==30)drawArm();requestAnimationFrame(frame);
+  }
+  resetArm();refreshAnalysis();drawTime();requestAnimationFrame(frame);
+}());
+
+</script>
+</body></html>

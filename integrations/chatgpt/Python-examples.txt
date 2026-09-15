@@ -1,0 +1,1814 @@
+Mechatronics Python examples — MIT licensed. Python 3.9+ standard library for numerical examples. The interface exporter also uses the standard library; generated ROS adapters require their ROS environment. Extract files into the shown paths under one skill folder; this combined text is not executable.
+
+
+=== FILE: scripts/control_lab.py ===
+#!/usr/bin/env python3
+"""Sampled PID/continuous plant teaching lab. Python 3.9+ standard library only."""
+import argparse
+import csv
+import json
+import math
+from pathlib import Path
+
+
+def rk4_step(x, v, force, dt, mass, damping, stiffness):
+    """Integrate m*x'' + b*x' + k*x = force, with force held over this step."""
+    def f(px, pv):
+        return pv, (force-damping*pv-stiffness*px)/mass
+    a = f(x, v)
+    b = f(x+dt*a[0]/2, v+dt*a[1]/2)
+    c = f(x+dt*b[0]/2, v+dt*b[1]/2)
+    d = f(x+dt*c[0], v+dt*c[1])
+    return (x+dt*(a[0]+2*b[0]+2*c[0]+d[0])/6,
+            v+dt*(a[1]+2*b[1]+2*c[1]+d[1])/6)
+
+
+class PID:
+    """Parallel PID, derivative on measured position, conditional antiwindup."""
+    def __init__(self, kp=80.0, ki=40.0, kd=12.0, limit=10.0, tau=0.02):
+        for name, value in (("kp", kp), ("ki", ki), ("kd", kd), ("limit", limit), ("tau", tau)):
+            if not math.isfinite(value) or value < 0 or (name == "limit" and value == 0):
+                raise ValueError(f"invalid {name}")
+        self.kp, self.ki, self.kd, self.limit, self.tau = kp, ki, kd, limit, tau
+        self.integral = 0.0
+        self.previous = None
+        self.derivative = 0.0
+
+    def update(self, target, measured, dt):
+        if not all(math.isfinite(z) for z in (target, measured, dt)) or dt <= 0:
+            raise ValueError("finite target/measurement and positive sample interval required")
+        error = target-measured
+        raw_d = 0.0 if self.previous is None else (measured-self.previous)/dt
+        alpha = dt/(self.tau+dt)
+        self.derivative += alpha*(raw_d-self.derivative)
+        self.previous = measured
+        candidate_i = self.integral+self.ki*error*dt
+        candidate_u = self.kp*error+candidate_i-self.kd*self.derivative
+        # Retain integration when unsaturated or when the error unwinds saturation.
+        if abs(candidate_u) <= self.limit or candidate_u*error < 0:
+            self.integral = candidate_i
+        output = self.kp*error+self.integral-self.kd*self.derivative
+        return max(-self.limit, min(self.limit, output))
+
+
+def simulate(sample_s=0.01, substeps=10, duration_s=8.0):
+    if not math.isfinite(sample_s) or sample_s <= 0 or not math.isfinite(duration_s) or duration_s <= 4:
+        raise ValueError("positive sample time and duration over 4 s required")
+    if not isinstance(substeps, int) or substeps < 1:
+        raise ValueError("substeps must be a positive integer")
+    count = round(duration_s/sample_s)
+    if count > 1000000 or count < 2 or abs(count*sample_s-duration_s) > 1e-9:
+        raise ValueError("duration must contain an integer number of samples, at most one million")
+    mass, damping, stiffness = 1.0, 2.0, 20.0
+    x = v = xo = vo = 0.0
+    pid = PID()
+    rows = []
+    for i in range(count+1):
+        t = i*sample_s
+        target = 0.1 if t >= 0.5-1e-12 else 0.0
+        disturbance = -1.0 if t >= 4.0-1e-12 else 0.0
+        force = pid.update(target, x, sample_s)
+        rows.append({"time_s": t, "reference_m": target, "closed_loop_m": x,
+                     "open_loop_m": xo, "velocity_m_s": v, "control_force_n": force,
+                     "disturbance_n": disturbance})
+        if i == count:
+            break
+        for _ in range(substeps):
+            h = sample_s/substeps
+            x, v = rk4_step(x, v, force+disturbance, h, mass, damping, stiffness)
+            xo, vo = rk4_step(xo, vo, stiffness*target+disturbance, h, mass, damping, stiffness)
+    tracked = [r for r in rows if r["time_s"] >= 0.5]
+    metrics = {"evidence": "simulated; no physical hardware tested",
+               "parameters": {"mass_kg": mass, "damping_n_s_per_m": damping, "stiffness_n_per_m": stiffness,
+                              "sample_s": sample_s, "plant_substeps": substeps, "duration_s": duration_s,
+                              "kp_n_per_m": 80, "ki_n_per_m_s": 40, "kd_n_s_per_m": 12,
+                              "derivative_filter_tau_s": 0.02, "force_limit_n": 10},
+               "final_error_m": rows[-1]["reference_m"]-x,
+               "final_open_loop_error_m": rows[-1]["reference_m"]-xo,
+               "tracking_rmse_m": math.sqrt(sum((r["reference_m"]-r["closed_loop_m"])**2 for r in tracked)/len(tracked)),
+               "peak_abs_command_n": max(abs(r["control_force_n"]) for r in rows),
+               "saturation_fraction_of_intervals": sum(abs(r["control_force_n"]) >= 10-1e-12 for r in rows[:-1])/count}
+    return rows, metrics
+
+
+def frequency_response():
+    rows = []
+    for i in range(161):
+        hz = 10**(-2+4*i/160)
+        omega = 2*math.pi*hz
+        h = 1/complex(20-omega**2, 2*omega)
+        rows.append({"frequency_hz": hz, "omega_rad_s": omega,
+                     "magnitude_db_re_1_m_per_n": 20*math.log10(abs(h)),
+                     "phase_deg": math.degrees(math.atan2(h.imag, h.real))})
+    return rows
+
+
+def write_csv(path, rows):
+    with path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+
+
+def write_html(path, rows, metrics):
+    # Data is numeric, generated locally; no external assets or dependencies.
+    payload = json.dumps({"rows": rows, "metrics": metrics}, allow_nan=False)
+    page = '''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mechatronics control lab</title><style>body{font:17px system-ui;max-width:1100px;margin:36px auto;padding:0 20px;background:#f4f6fa;color:#16253a}h1{margin-bottom:8px}section{background:white;padding:22px;margin:22px 0;border-radius:12px}svg{width:100%;height:auto}label{display:inline-block;margin:8px 20px 8px 0}pre{white-space:pre-wrap;font-size:14px}.note{color:#41536a}line{stroke:#d5dde7}text{font:14px system-ui;fill:#41536a}</style>
+<h1>Sampled control, visible results</h1><p>Mass–spring–damper position control. Educational simulation; no hardware validation.</p>
+<section><h2>Position versus time</h2><p class="note">Reference steps to 0.1 m at 0.5 s. A −1 N disturbance starts at 4 s. The open-loop baseline applies force k × reference. The sampled PID uses measured feedback.</p>
+<div id="toggles"></div><svg id="plot" viewBox="0 0 1000 390" role="img" aria-label="Position in metres against time in seconds"></svg></section>
+<section><h2>Force command</h2><svg id="force" viewBox="0 0 1000 390" role="img" aria-label="Control force and disturbance in newtons against time"></svg></section>
+<section><h2>Metrics and reproducibility</h2><p>CSV files contain the raw traces and plant Bode data. Plant frequency response alone does not establish closed-loop stability margins. The trace omits noise, backlash, delay beyond sampling, temperature and unmodelled structural modes.</p><pre id="metrics"></pre></section>
+<script>const data=PAYLOAD; const colors=['#6b7280','#006fc4','#c26000'];const series=['reference_m','closed_loop_m','open_loop_m'];const labels=['Reference','Closed loop PID','Open loop'];
+function chart(id,keys,cols,unit){const svg=document.getElementById(id),rows=data.rows;let vals=rows.flatMap(r=>keys.map(k=>r[k])),lo=Math.min(...vals),hi=Math.max(...vals);const pad=Math.max((hi-lo)*.1,.005);lo-=pad;hi+=pad;let out='';for(let i=0;i<=5;i++){const yy=30+i*58,v=hi-(hi-lo)*i/5;out+=`<line x1="85" y1="${yy}" x2="970" y2="${yy}"/><text x="3" y="${yy+5}">${v.toFixed(3)}</text>`;}for(let i=0;i<=8;i++){let xx=85+i*885/8,t=rows.at(-1).time_s*i/8;out+=`<text x="${xx-6}" y="349">${t.toFixed(1)}</text>`;}out+=`<text x="470" y="379">Time (s)</text><text x="85" y="18">${unit}</text>`;keys.forEach((k,j)=>{const p=rows.map(r=>`${85+r.time_s/rows.at(-1).time_s*885},${30+(hi-r[k])/(hi-lo)*290}`).join(' ');out+=`<polyline data-key="${k}" fill="none" stroke="${cols[j]}" stroke-width="2.4" points="${p}"/>`;});svg.innerHTML=out;}
+chart('plot',series,colors,'Position (m)');chart('force',['control_force_n','disturbance_n'],['#006fc4','#c26000'],'Force (N): blue = command; orange = disturbance');document.getElementById('metrics').textContent=JSON.stringify(data.metrics,null,2);series.forEach((k,i)=>{const l=document.createElement('label');l.style.color=colors[i];const c=document.createElement('input');c.type='checkbox';c.checked=true;c.onchange=()=>document.querySelector(`[data-key="${k}"]`).style.display=c.checked?'':'none';l.append(c,document.createTextNode(' '+labels[i]));document.getElementById('toggles').append(l);});</script></html>'''
+    path.write_text(page.replace("PAYLOAD", payload), encoding="utf-8")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--out", type=Path, required=True, help="directory for CSV/JSON/HTML teaching results")
+    parser.add_argument("--sample-s", type=float, default=0.01)
+    parser.add_argument("--substeps", type=int, default=10)
+    args = parser.parse_args()
+    rows, metrics = simulate(args.sample_s, args.substeps)
+    args.out.mkdir(parents=True, exist_ok=True)
+    write_csv(args.out/"step-response.csv", rows)
+    write_csv(args.out/"plant-bode.csv", frequency_response())
+    (args.out/"metrics.json").write_text(json.dumps(metrics, indent=2, allow_nan=False)+"\n", encoding="utf-8")
+    write_html(args.out/"control-lab.html", rows, metrics)
+    print(json.dumps(metrics, indent=2, allow_nan=False))
+
+
+if __name__ == "__main__":
+    main()
+
+
+=== FILE: scripts/engineering_calcs.py ===
+#!/usr/bin/env python3
+"""Transparent educational sizing helpers; SI inputs, no hardware or network I/O."""
+import argparse
+import json
+import math
+
+G = 9.80665
+
+
+def finite(name, value, minimum=None, positive=False):
+    value = float(value)
+    if not math.isfinite(value) or (minimum is not None and value < minimum) or (positive and value <= 0):
+        raise ValueError(f"{name} is outside its finite allowed range")
+    return value
+
+
+def efficiency(name, value):
+    value = finite(name, value, positive=True)
+    if value > 1:
+        raise ValueError(f"{name} must be in (0, 1]")
+    return value
+
+
+def screw_torque(force_n, lead_m_per_rev, eff):
+    """Steady lifting torque; excludes screw inertia, bearing torque and acceleration."""
+    return finite("force", force_n, minimum=0) * finite("lead", lead_m_per_rev, positive=True) / (2 * math.pi * efficiency("efficiency", eff))
+
+
+def battery_runtime(voltage_v, capacity_ah, usable_fraction, eff, load_w):
+    """Constant-load nominal energy estimate; excludes sag/temperature/age dynamics."""
+    energy = finite("voltage", voltage_v, positive=True) * finite("capacity", capacity_ah, positive=True)
+    return energy * efficiency("usable fraction", usable_fraction) * efficiency("efficiency", eff) / finite("load", load_w, positive=True)
+
+
+def rover_sizing(mass_kg, radius_m, acceleration_m_s2, grade_deg, rolling_coefficient, drive_efficiency, driven_wheels, traction_coefficient):
+    """Uphill, all weight on equally loaded driven wheels; no aerodynamic drag."""
+    m = finite("mass", mass_kg, positive=True)
+    r = finite("radius", radius_m, positive=True)
+    a = finite("acceleration", acceleration_m_s2, minimum=0)
+    grade = finite("grade", grade_deg, minimum=0)
+    if grade >= 89:
+        raise ValueError("grade must be less than 89 degrees; tipping/terrain need separate models")
+    wheels = finite("driven wheels", driven_wheels, positive=True)
+    if not wheels.is_integer():
+        raise ValueError("driven wheels must be an integer")
+    crr = finite("rolling coefficient", rolling_coefficient, minimum=0)
+    mu = finite("traction coefficient", traction_coefficient, minimum=0)
+    eta = efficiency("drive efficiency", drive_efficiency)
+    theta = math.radians(grade)
+    normal = m * G * math.cos(theta)
+    force = m * a + m * G * math.sin(theta) + crr * normal
+    return {"force_n": force, "wheel_load_torque_nm_each": force * r / wheels,
+            "equivalent_input_torque_nm_each_at_1_to_1": force * r / (wheels * eta),
+            "traction_limit_n": mu * normal, "traction_feasible_in_simple_model": force <= mu * normal}
+
+
+def planar_2r_ik(l1_m, l2_m, x_m, y_m):
+    """Two position-only planar arm solutions in radians; no collisions/joint limits."""
+    l1 = finite("link 1", l1_m, positive=True)
+    l2 = finite("link 2", l2_m, positive=True)
+    x, y = finite("x", x_m), finite("y", y_m)
+    radius = math.hypot(x, y)
+    if radius < 1e-12 and abs(l1-l2) < 1e-12:
+        raise ValueError("folded origin has infinitely many shoulder solutions; specify a posture")
+    c2 = (x*x + y*y - l1*l1 - l2*l2) / (2*l1*l2)
+    if abs(c2) > 1 + 1e-12:
+        raise ValueError("target outside the annular reachable workspace")
+    c2 = max(-1.0, min(1.0, c2))
+    result = []
+    for sign in (1, -1):
+        q2 = sign * math.acos(c2)
+        q1 = math.atan2(y, x) - math.atan2(l2*math.sin(q2), l1+l2*math.cos(q2))
+        result.append({"q1_rad": q1, "q2_rad": q2, "singular": abs(math.sin(q2)) < 1e-10})
+    return result
+
+
+def contribution_model(cost_per_start, yield_fraction, variable_per_sold, net_price, fixed_cost):
+    """All starts incur full production cost; failures scrapped with no recovery."""
+    unit = finite("cost per start", cost_per_start, minimum=0) / efficiency("yield", yield_fraction) + finite("variable sold cost", variable_per_sold, minimum=0)
+    price = finite("net price", net_price, positive=True)
+    fixed = finite("fixed cost", fixed_cost, minimum=0)
+    contribution = price-unit
+    return {"variable_cost_per_good_unit": unit, "contribution_per_unit": contribution,
+            "contribution_fraction": contribution/price,
+            "break_even_units": math.ceil(fixed/contribution) if contribution > 0 else None,
+            "break_even_possible": contribution > 0}
+
+
+def demo():
+    return {"evidence": "calculated educational examples; no hardware validation or market quotes",
+            "screw_torque_nm": screw_torque(100, 0.005, 0.9),
+            "battery_runtime_h": battery_runtime(24, 10, 0.8, 0.9, 60),
+            "rover": rover_sizing(20, 0.1, 0.5, 5, 0.02, 0.8, 4, 0.6),
+            "arm_solutions": planar_2r_ik(0.3, 0.2, 0.3, 0.2),
+            "cost_base": contribution_model(245, 0.95, 25, 450, 30000),
+            "cost_lower_yield": contribution_model(245, 0.85, 25, 450, 30000),
+            "cost_lower_price": contribution_model(245, 0.95, 25, 400, 30000)}
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--demo", action="store_true", help="print the documented examples as JSON")
+    args = parser.parse_args()
+    if args.demo:
+        print(json.dumps(demo(), indent=2, allow_nan=False))
+    else:
+        parser.print_help()
+
+
+=== FILE: scripts/export_interfaces.py ===
+#!/usr/bin/env python3
+"""Export one browser plant to Scilab/Xcos setup and a simulation-only ROS 2 kit.
+
+Standard library only. This is not full-graph/controller conversion. No runtimes
+are installed or invoked. Existing nonempty output directories are rejected.
+"""
+import argparse
+import csv
+import importlib.util
+import json
+import math
+from pathlib import Path
+import re
+import shutil
+
+ROOT = Path(__file__).resolve().parents[1]
+ASSETS = ROOT / "assets" / "interfaces"
+_spec = importlib.util.spec_from_file_location("mechatronics_interface_core", ASSETS / "sim_core.py")
+_core = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_core)
+PlantSimulator, plant_matrices, number = _core.PlantSimulator, _core.plant_matrices, _core.number
+sample_count = _core.sample_count
+
+SCHEMA = "mechatronics-block-diagram/v1"
+# Deliberate Python mirror of browser block-engine.js v1 schema/defaults/bounds.
+# Test parity when that browser schema changes; unsupported fields fail closed.
+BLOCKS = {
+    "constant": ([], {"value": 1}, {"value": (-1e6, 1e6)}),
+    "step": ([], {"initial": 0, "final": 1, "at": .5}, {"initial": (-1e6, 1e6), "final": (-1e6, 1e6), "at": (0, 60)}),
+    "sine": ([], {"amplitude": 1, "frequency": 1, "offset": 0, "phase": 0}, {"amplitude": (0, 1e5), "frequency": (0, 100), "offset": (-1e6, 1e6), "phase": (-36000, 36000)}),
+    "sum": (["a", "b"], {"signA": 1, "signB": -1}, {"signA": (-1, 1), "signB": (-1, 1)}),
+    "gain": (["in"], {"gain": 1}, {"gain": (-1e5, 1e5)}),
+    "saturation": (["in"], {"min": -10, "max": 10}, {"min": (-1e6, 1e6), "max": (-1e6, 1e6)}),
+    "pid": (["setpoint", "measurement"], {"kp": 18, "ki": 8, "kd": 4, "tf": .04, "limit": 30}, {"kp": (0, 1e4), "ki": (0, 1e4), "kd": (0, 1e4), "tf": (.001, 10), "limit": (.01, 1e6)}),
+    "integrator": (["in"], {"initial": 0}, {"initial": (-1e5, 1e5)}),
+    "delay": (["in"], {"initial": 0}, {"initial": (-1e5, 1e5)}),
+    "firstOrder": (["in"], {"gain": 1, "tau": .5, "initial": 0}, {"gain": (-1e4, 1e4), "tau": (.001, 100), "initial": (-1e5, 1e5)}),
+    "massSpring": (["in"], {"m": 1, "b": 1.2, "k": 4, "initialPosition": 0, "initialVelocity": 0}, {"m": (.02, 1000), "b": (.001, 100), "k": (.001, 1000), "initialPosition": (-100, 100), "initialVelocity": (-1000, 1000)}),
+    "scope": (["in"], {}, {}),
+}
+STATE_ONLY = {"integrator", "delay", "firstOrder", "massSpring"}
+RESERVED_IDS = {"constructor", "toString", "toLocaleString", "valueOf", "hasOwnProperty",
+                "isPrototypeOf", "propertyIsEnumerable", "__defineGetter__", "__defineSetter__",
+                "__lookupGetter__", "__lookupSetter__", "__proto__"}
+
+
+def object_fields(value, allowed, name, required=()):
+    if not isinstance(value, dict):
+        raise ValueError(f"{name} must be an object")
+    if set(value) - set(allowed):
+        raise ValueError(f"unknown {name} fields: {sorted(set(value)-set(allowed))}")
+    if set(required) - set(value):
+        raise ValueError(f"missing {name} fields: {sorted(set(required)-set(value))}")
+    return value
+
+
+def identifier(value, name):
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,39}", value):
+        raise ValueError(f"{name} must be a 1-40 character browser identifier")
+    if value in RESERVED_IDS:
+        raise ValueError(f"{name} uses a reserved browser identifier")
+    return value
+
+
+def printable_text(value, name, length=60):
+    if not isinstance(value, str) or not 1 <= len(value) <= length or re.search(r"[\x00-\x1f\x7f]", value):
+        raise ValueError(f"{name} must be 1-{length} printable characters")
+    return value
+
+
+def validate_diagram(raw):
+    object_fields(raw, ("schema", "settings", "nodes", "edges"), "diagram",
+                  ("schema", "settings", "nodes", "edges"))
+    if raw["schema"] != SCHEMA:
+        raise ValueError("expected browser schema " + SCHEMA)
+    settings = object_fields(raw["settings"], ("dt", "duration"), "settings", ("dt", "duration"))
+    dt = number(settings["dt"], "dt", .001, .1)
+    duration = number(settings["duration"], "duration", .1, 60)
+    if not isinstance(raw["nodes"], list) or not 1 <= len(raw["nodes"]) <= 50:
+        raise ValueError("diagram needs 1-50 nodes")
+    if not isinstance(raw["edges"], list) or len(raw["edges"]) > 100:
+        raise ValueError("diagram supports at most 100 edges")
+    steps = sample_count(duration, dt)
+    if steps*len(raw["nodes"]) > 1e6:
+        raise ValueError("diagram exceeds one million block samples")
+    nodes, by_id = [], {}
+    for raw_node in raw["nodes"]:
+        object_fields(raw_node, ("id", "type", "x", "y", "params", "label"), "node",
+                      ("id", "type", "x", "y"))
+        ident = identifier(raw_node["id"], "node id")
+        kind = raw_node["type"]
+        if not isinstance(kind, str) or kind not in BLOCKS:
+            raise ValueError("unsupported block type")
+        if ident in by_id:
+            raise ValueError("duplicate node id: " + ident)
+        _, defaults, bounds = BLOCKS[kind]
+        given = object_fields(raw_node.get("params", {}), defaults, "parameters")
+        params = {**defaults, **given}
+        params = {key: number(value, ident+"."+key, *bounds[key]) for key, value in params.items()}
+        if kind == "sum" and any(value not in (-1, 1) for value in params.values()):
+            raise ValueError("sum signs must be +1 or -1")
+        if kind == "saturation" and params["min"] >= params["max"]:
+            raise ValueError("saturation min must be below max")
+        node = {"id": ident, "type": kind, "params": params,
+                "x": number(raw_node["x"], "x", -10000, 10000),
+                "y": number(raw_node["y"], "y", -10000, 10000),
+                "label": printable_text(raw_node.get("label", kind), "label")}
+        nodes.append(node)
+        by_id[ident] = node
+    substeps = 0
+    for node in nodes:
+        p = node["params"]
+        if node["type"] == "massSpring":
+            substeps += max(1, math.ceil(dt*max(math.sqrt(p["k"]/p["m"]), p["b"]/p["m"])/.2))
+        elif node["type"] == "firstOrder":
+            substeps += max(1, math.ceil(dt/(p["tau"]*.4)))
+        else:
+            substeps += 1
+    if substeps > 25000 or substeps*steps > 20000000:
+        raise ValueError("diagram exceeds browser integration workload limit")
+    destinations, edge_ids, edges = set(), set(), []
+    for edge in raw["edges"]:
+        object_fields(edge, ("id", "from", "to"), "edge", ("id", "from", "to"))
+        ident = identifier(edge["id"], "edge id")
+        if ident in edge_ids:
+            raise ValueError("duplicate edge id")
+        edge_ids.add(ident)
+        for end in ("from", "to"):
+            endpoint = object_fields(edge[end], ("node", "port"), "edge endpoint", ("node", "port"))
+            node_id = identifier(endpoint["node"], "endpoint node")
+            if node_id not in by_id:
+                raise ValueError("edge references missing node")
+            kind = by_id[node_id]["type"]
+            ports = BLOCKS[kind][0] if end == "to" else ([] if kind == "scope" else ["out"])
+            if endpoint["port"] not in ports:
+                raise ValueError("invalid edge port")
+        destination = (edge["to"]["node"], edge["to"]["port"])
+        if destination in destinations:
+            raise ValueError("ambiguous input: more than one driver")
+        destinations.add(destination)
+        edges.append(edge)
+    for node in nodes:
+        for port in BLOCKS[node["type"]][0]:
+            if (node["id"], port) not in destinations:
+                raise ValueError("unconnected required input: " + node["id"]+"."+port)
+    # State-only destinations break instantaneous dependence exactly as in browser.
+    degree = {n["id"]: 0 for n in nodes}
+    children = {n["id"]: [] for n in nodes}
+    for edge in edges:
+        src, dst = edge["from"]["node"], edge["to"]["node"]
+        if by_id[dst]["type"] not in STATE_ONLY:
+            degree[dst] += 1
+            children[src].append(dst)
+    queue, count = [key for key, value in degree.items() if value == 0], 0
+    while queue:
+        item = queue.pop()
+        count += 1
+        for child in children[item]:
+            degree[child] -= 1
+            if degree[child] == 0:
+                queue.append(child)
+    if count != len(nodes):
+        raise ValueError("algebraic loop in direct-feedthrough blocks")
+    return {"schema": SCHEMA, "settings": {"dt": dt, "duration": duration}, "nodes": nodes, "edges": edges}
+
+
+def select_plant(raw, plant_node, input_unit=None, output_unit=None, watchdog_s=.5, input_limit=1000):
+    diagram = validate_diagram(raw)
+    if plant_node is None:
+        raise ValueError("an explicit plant-node id is required; no automatic/ambiguous selection")
+    matches = [node for node in diagram["nodes"] if node["id"] == plant_node]
+    if len(matches) != 1:
+        raise ValueError("selected plant node was not found")
+    node = matches[0]
+    matrix = plant_matrices(node["type"], node["params"])
+    mechanical = node["type"] == "massSpring"
+    if mechanical and ((input_unit is not None and input_unit != "N") or
+                       (output_unit is not None and output_unit != "m")):
+        raise ValueError("massSpring uses N input and m output; no implicit unit conversion")
+    in_unit = printable_text(input_unit or ("N" if mechanical else "unspecified_input_unit"), "input unit", 40)
+    out_unit = printable_text(output_unit or ("m" if mechanical else "unspecified_output_unit"), "output unit", 40)
+    config = {"schema": _core.SCHEMA, "plant_id": node["id"], "plant_type": node["type"],
+              "parameters": node["params"], **{key: matrix[key] for key in ("A", "B", "C", "D", "x0")},
+              "state_order": ["position", "velocity"] if mechanical else ["output_state"],
+              "state_units": ["m", "m/s"] if mechanical else [out_unit],
+              "input_unit": in_unit, "output_unit": out_unit,
+              "dt_s": diagram["settings"]["dt"], "requested_duration_s": diagram["settings"]["duration"],
+              "watchdog_s": number(watchdog_s, "watchdog_s", .001, 10),
+              "input_limit": number(input_limit, "input_limit", .001, 1e6),
+              "comparison_input": 1.0,
+              "boundary": "selected continuous plant only; original wiring/controllers/sources are excluded",
+              "unit_note": "firstOrder units require user declaration; labels do not enforce dimensions",
+              "evidence": "exported analytical model; external runtime and hardware execution not established"}
+    if config["input_limit"] < 1:
+        raise ValueError("input_limit must allow the unit-input comparison (>=1)")
+    simulator = PlantSimulator(config)
+    config["effective_duration_s"] = simulator.max_steps*simulator.dt
+    config["substeps_per_tick"] = simulator.substeps
+    return config
+
+
+def no_duplicates(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key: " + key)
+        result[key] = value
+    return result
+
+
+def load_diagram(path):
+    path = Path(path)
+    if path.stat().st_size > 1_000_000:
+        raise ValueError("diagram exceeds 1 MB input limit")
+    def invalid_constant(value):
+        raise ValueError("nonfinite JSON value: " + value)
+    return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=no_duplicates,
+                      parse_constant=invalid_constant)
+
+
+def sci_matrix(rows):
+    return "[" + "; ".join(" ".join(format(float(value), ".17g") for value in row) for row in rows) + "]"
+
+
+def export_bundle(config, output):
+    # Complete analytical/reference work before making the output concrete.
+    sim = PlantSimulator(config)
+    rows = [[0.0, 1.0, sim.snapshot()["output"], *sim.x]]
+    while not sim.done:
+        state = sim.advance(1.0)
+        rows.append([state["simulation_time_s"], 1.0, state["output"], *state["state"]])
+    out = Path(output)
+    if out.exists() and (not out.is_dir() or any(out.iterdir())):
+        raise ValueError("output must be a new or empty directory; existing exports are not overwritten")
+    out.mkdir(parents=True, exist_ok=True)
+    config_json = json.dumps(config, indent=2, allow_nan=False) + "\n"
+    (out / "plant.json").write_text(config_json, encoding="utf-8")
+    with (out / "reference.csv").open("w", newline="", encoding="utf-8") as stream:
+        csv.writer(stream).writerows(rows)
+    definitions = ["// Selected plant only. SI/declared units are recorded in plant.json."]
+    for key in ("A", "B", "C", "D"):
+        definitions.append(key + " = " + sci_matrix(config[key]) + ";")
+    definitions += ["x0 = " + sci_matrix([[v] for v in config["x0"]]) + ";",
+                    "sample_dt = " + format(config["dt_s"], ".17g") + ";",
+                    "final_time = " + format(config["effective_duration_s"], ".17g") + ";",
+                    "comparison_input = 1;",
+                    "plant = syslin('c', A, B, C, D, x0);", ""]
+    (out / "plant_data.sce").write_text("\n".join(definitions), encoding="utf-8")
+    analysis = '''// Run in Scilab: exec("/absolute/export/path/scilab_analysis.sce", -1);
+// Isolated plant under unit constant input from t=0; original graph excluded.
+export_dir = get_absolute_file_path("scilab_analysis.sce");
+exec(export_dir + "plant_data.sce", -1);
+reference = csvRead(export_dir + "reference.csv", ",", ".");
+t = reference(:, 1)';
+function value = mech_unit_input(time)
+    value = 1;
+endfunction
+// Use function input so supplied nonzero initial conditions retain their meaning.
+[y, x] = csim(mech_unit_input, t, plant, x0, [1d-10, 1d-8]);
+csvWrite([t', ones(t)', y', x'], export_dir + "scilab_response.csv", ",", ".", "%.17g");
+output_error = max(abs(y' - reference(:, 3)));
+state_error = max(abs(x' - reference(:, 4:$)));
+mprintf("Maximum output difference versus Python RK4: %.9g\\n", output_error);
+mprintf("Maximum state difference versus Python RK4: %.9g\\n", state_error);
+// These differences require interpretation with units and a dt-convergence check.
+scf(); plot(t, y); xtitle("Selected plant: unit-input response", "Time / s", "Output / declared unit");
+// Frequency arguments are Hz. This is plant response, not closed-loop margins.
+if norm(B) > 0 then
+    scf(); bode(plant, 1d-3, 1d3);
+else
+    mprintf("B=0: input has no effect; skipped logarithmic zero-gain Bode plot.\\n");
+end
+'''
+    (out / "scilab_analysis.sce").write_text(analysis, encoding="utf-8")
+    xcos_setup = '''// Documented GUI construction workflow, not a generated native diagram.
+export_dir = get_absolute_file_path("xcos_setup.sce");
+exec(export_dir + "plant_data.sce", -1);
+disp("Use the Xcos steps in README.md: STEP_FUNCTION -> CLSS -> CSCOPE; CLOCK_c -> scope event port.");
+disp("Copy plant_data.sce numeric assignments into diagram context for a portable saved diagram.");
+xcos();
+'''
+    (out / "xcos_setup.sce").write_text(xcos_setup, encoding="utf-8")
+    atoms_setup = '''// Local inspection only. Core Scilab/Xcos functions need no extra ATOMS module here.
+installed_modules = atomsGetInstalled();
+disp(installed_modules);
+// OPTIONAL: first verify a specific module, version, platform support and licence.
+// Explicit user opt-in only: uncomment/edit the next lines to download/install it.
+// requested_module = "REPLACE_WITH_REVIEWED_MODULE_NAME";
+// requested_version = "REPLACE_WITH_REVIEWED_VERSION";
+// atomsInstall([requested_module requested_version]);
+// For an already installed reviewed module, explicitly load its code:
+// atomsLoad([requested_module requested_version]);
+'''
+    (out / "atoms_setup.sce").write_text(atoms_setup, encoding="utf-8")
+    shutil.copyfile(ASSETS / "README.md", out / "README.md")
+    package = out / "ros2_ws" / "src" / "mechatronics_sim"
+    module = package / "mechatronics_sim"
+    module.mkdir(parents=True)
+    (package / "resource").mkdir()
+    (package / "resource" / "mechatronics_sim").write_text("", encoding="utf-8")
+    (module / "__init__.py").write_text("", encoding="utf-8")
+    (module / "plant.json").write_text(config_json, encoding="utf-8")
+    shutil.copyfile(ASSETS / "sim_core.py", module / "sim_core.py")
+    shutil.copyfile(ASSETS / "ros_node.py", module / "node.py")
+    shutil.copyfile(ROOT / "LICENSE", package / "LICENSE")
+    (package / "setup.py").write_text('''from setuptools import setup
+
+setup(name="mechatronics_sim", version="0.1.0", packages=["mechatronics_sim"],
+      package_data={"mechatronics_sim": ["plant.json"]},
+      data_files=[("share/ament_index/resource_index/packages", ["resource/mechatronics_sim"]),
+                  ("share/mechatronics_sim", ["package.xml", "LICENSE"])],
+      install_requires=["setuptools"], zip_safe=False,
+      maintainer="Mechatronics skill user", maintainer_email="maintainer@example.invalid",
+      description="Selected plant educational simulation; no hardware bridge", license="MIT",
+      entry_points={"console_scripts": ["plant_sim = mechatronics_sim.node:main"]})
+''', encoding="utf-8")
+    (package / "setup.cfg").write_text("[develop]\nscript_dir=$base/lib/mechatronics_sim\n[install]\ninstall_scripts=$base/lib/mechatronics_sim\n", encoding="utf-8")
+    (package / "package.xml").write_text('''<?xml version="1.0"?>
+<package format="3">
+  <name>mechatronics_sim</name><version>0.1.0</version>
+  <description>Selected plant educational simulation; no hardware bridge</description>
+  <maintainer email="maintainer@example.invalid">Mechatronics skill user</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend><exec_depend>std_msgs</exec_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
+''', encoding="utf-8")
+    return {"output_directory": str(out.resolve()), "plant_id": config["plant_id"],
+            "reference_rows": len(rows), "xcos_mode": "documented GUI setup; no native diagram generated",
+            "evidence": "files generated and Python reference computed; external runtime execution not established"}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--diagram", required=True, type=Path)
+    parser.add_argument("--plant-node", required=True, help="explicit browser node id")
+    parser.add_argument("--out", required=True, type=Path, help="new or empty output directory")
+    parser.add_argument("--input-unit", help="firstOrder input unit; declares, does not convert")
+    parser.add_argument("--output-unit", help="firstOrder output unit; declares, does not convert")
+    parser.add_argument("--watchdog-s", type=float, default=.5)
+    parser.add_argument("--input-limit", type=float, default=1000, help="symmetric simulation-only input envelope")
+    args = parser.parse_args(argv)
+    try:
+        config = select_plant(load_diagram(args.diagram), args.plant_node, args.input_unit,
+                              args.output_unit, args.watchdog_s, args.input_limit)
+        result = export_bundle(config, args.out)
+    except (OSError, ValueError, TypeError) as exc:
+        parser.error(str(exc))
+    print(json.dumps(result, indent=2, allow_nan=False))
+
+
+if __name__ == "__main__":
+    main()
+
+
+=== FILE: scripts/manufacturing_calcs.py ===
+#!/usr/bin/env python3
+"""Queue, pull-system and SQC teaching calculations. No production-system I/O."""
+import argparse
+import json
+import math
+from engineering_calcs import finite
+
+
+def integer(name, value):
+    value=finite(name,value,positive=True)
+    if not value.is_integer(): raise ValueError(f"{name} must be an integer")
+    return int(value)
+
+
+def mmc(arrival_per_hour, service_per_hour_each, servers=1):
+    """Steady FIFO M/M/c with pooled identical servers, infinite buffer/no abandonment."""
+    arrival=finite("arrival rate",arrival_per_hour,minimum=0)
+    service=finite("service rate",service_per_hour_each,positive=True)
+    c=integer("servers",servers)
+    if c>10000: raise ValueError("teaching helper is bounded to 10000 servers")
+    rho=arrival/(c*service)
+    if rho>=1: raise ValueError("unstable queue: arrival must be below total service capacity")
+    offered=arrival/service
+    # Stable Erlang-B recurrence, then convert to Erlang C; avoids factorial overflow.
+    erlang_b=1.0
+    for n in range(1,c+1):
+        erlang_b=offered*erlang_b/(n+offered*erlang_b)
+    probability_wait=erlang_b/(1-rho+rho*erlang_b)
+    wait=probability_wait/(c*service-arrival)
+    system=wait+1/service
+    return {"utilisation":rho,"probability_wait":probability_wait,"mean_queue_wait_h":wait,
+            "mean_system_time_h":system,"mean_queue_items":arrival*wait,"mean_system_items":arrival*system}
+
+
+def little_lead_time(wip, throughput_per_hour):
+    """Matched flow populations/boundaries in a stable process; returns hours."""
+    return finite("WIP",wip,minimum=0)/finite("throughput",throughput_per_hour,positive=True)
+
+
+def kingman_wait(arrival_per_hour, mean_service_h, arrival_cv, service_cv):
+    """Approximate stable G/G/1 queue waiting time, hours; model assumptions matter."""
+    arrival=finite("arrival",arrival_per_hour,minimum=0)
+    te=finite("service time",mean_service_h,positive=True)
+    ca=finite("arrival CV",arrival_cv,minimum=0)
+    cs=finite("service CV",service_cv,minimum=0)
+    rho=arrival*te
+    if rho>=1: raise ValueError("unstable queue: utilisation must be below 1")
+    return .5*(ca*ca+cs*cs)*rho/(1-rho)*te
+
+
+def kanban_cards(demand_per_hour, replenishment_h, container_units, safety_fraction):
+    demand=finite("demand",demand_per_hour,minimum=0)
+    lead=finite("replenishment time",replenishment_h,positive=True)
+    container=integer("container units",container_units)
+    safety=finite("safety allowance",safety_fraction,minimum=0)
+    return math.ceil(demand*lead*(1+safety)/container)
+
+
+def capability(lsl, usl, mean, sigma):
+    lsl,usl,mean=finite("LSL",lsl),finite("USL",usl),finite("mean",mean)
+    sigma=finite("sigma",sigma,positive=True)
+    if usl<=lsl: raise ValueError("USL must exceed LSL")
+    return {"cp":(usl-lsl)/(6*sigma),"cpk":min(usl-mean,mean-lsl)/(3*sigma)}
+
+
+def zero_failure_upper_bound(trials, confidence=.95):
+    n=integer("trials",trials)
+    confidence=finite("confidence",confidence,positive=True)
+    if confidence>=1: raise ValueError("confidence must be below 1")
+    return -math.expm1(math.log1p(-confidence)/n)
+
+
+def demo():
+    return {"evidence":"calculated teaching scenarios; factory data and distribution assumptions unverified",
+            "mm1_6_arrivals_8_service_per_hour":mmc(6,8),
+            "mm2_10_arrivals_6_service_each_per_hour":mmc(10,6,2),
+            "little_lead_time_h":little_lead_time(24,6),
+            "kingman_wait_h":kingman_wait(6,.125,1,.5),
+            "kanban_cards_illustrative_20_percent_allowance":kanban_cards(12,1.5,6,.2),
+            "capability_assuming_stable_normal_process":capability(9.8,10.2,10.05,.04),
+            "failure_probability_upper_95pct_zero_of_10":zero_failure_upper_bound(10),
+            "failure_probability_upper_95pct_zero_of_59":zero_failure_upper_bound(59)}
+
+
+if __name__=="__main__":
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--demo",action="store_true")
+    args=parser.parse_args()
+    if args.demo: print(json.dumps(demo(),indent=2,allow_nan=False))
+    else: parser.print_help()
+
+
+=== FILE: scripts/test_examples.py ===
+"""Numerical/property checks for the teaching helpers. Run with Python unittest."""
+import math
+import unittest
+from control_lab import PID, rk4_step, simulate, frequency_response
+from engineering_calcs import screw_torque, battery_runtime, rover_sizing, planar_2r_ik, contribution_model
+
+
+class EngineeringTests(unittest.TestCase):
+    def test_energy_and_screw_work_balance(self):
+        self.assertAlmostEqual(screw_torque(100, .005, .9)*2*math.pi*.9, 100*.005)
+        self.assertAlmostEqual(battery_runtime(24, 10, .8, .9, 60), 2.88)
+
+    def test_rover_force_and_traction(self):
+        r = rover_sizing(20, .1, .5, 0, 0, 1, 4, .01)
+        self.assertAlmostEqual(r["force_n"], 10)
+        self.assertAlmostEqual(r["wheel_load_torque_nm_each"], .25)
+        self.assertFalse(r["traction_feasible_in_simple_model"])
+
+    def test_ik_round_trip_both_branches(self):
+        for x, y in ((.3, .2), (-.2, .2), (.1, -.25), (.5, 0)):
+            for s in planar_2r_ik(.3, .2, x, y):
+                q1, q2 = s["q1_rad"], s["q2_rad"]
+                self.assertAlmostEqual(.3*math.cos(q1)+.2*math.cos(q1+q2), x)
+                self.assertAlmostEqual(.3*math.sin(q1)+.2*math.sin(q1+q2), y)
+
+    def test_ik_rejects_unreachable_and_underdetermined(self):
+        for args in ((.3,.2,.6,0), (.3,.2,.01,0), (.3,.3,0,0)):
+            with self.assertRaises(ValueError):
+                planar_2r_ik(*args)
+
+    def test_cost_sensitivity_and_no_false_break_even(self):
+        self.assertEqual(contribution_model(245,.95,25,450,30000)["break_even_units"],180)
+        self.assertEqual(contribution_model(245,.85,25,450,30000)["break_even_units"],220)
+        self.assertEqual(contribution_model(245,.95,25,400,30000)["break_even_units"],257)
+        self.assertIsNone(contribution_model(500,1,0,450,30000)["break_even_units"])
+
+    def test_invalid_inputs(self):
+        for f, args in ((battery_runtime,(24,10,1.1,1,60)),(screw_torque,(1,.005,0)),(contribution_model,(1,0,0,1,1)),(planar_2r_ik,(.3,.2,float('nan'),0))):
+            with self.assertRaises(ValueError):
+                f(*args)
+
+    def test_rk4_matches_undamped_analytic_oscillator(self):
+        x,v=1.,0.
+        for _ in range(1000):
+            x,v=rk4_step(x,v,0,.001,1,0,4)
+        self.assertAlmostEqual(x,math.cos(2),places=10)
+        self.assertAlmostEqual(v,-2*math.sin(2),places=10)
+        self.assertAlmostEqual(.5*v*v+2*x*x,2,places=10)
+
+    def test_pid_saturation_antiwindup_and_no_derivative_kick(self):
+        p=PID()
+        for _ in range(1000):
+            self.assertLessEqual(abs(p.update(100,0,.01)),10)
+        self.assertEqual(p.integral,0)
+        self.assertEqual(p.update(0,0,.01),0)
+        derivative_only=PID(kp=0,ki=0,kd=10)
+        derivative_only.update(0,0,.01)
+        self.assertEqual(derivative_only.update(100,0,.01),0)
+
+    def test_simulation_convergence_and_disturbance_rejection(self):
+        rows,m=simulate(substeps=5)
+        refined,m2=simulate(substeps=10)
+        self.assertLess(max(abs(a["closed_loop_m"]-b["closed_loop_m"]) for a,b in zip(rows,refined)),1e-8)
+        self.assertLess(abs(m["final_error_m"]),.005)
+        self.assertGreater(abs(m["final_open_loop_error_m"]),.04)
+        self.assertLessEqual(m["peak_abs_command_n"],10)
+
+    def test_bode_low_frequency_gain_and_high_frequency_phase(self):
+        f=frequency_response()
+        self.assertAlmostEqual(f[0]["magnitude_db_re_1_m_per_n"],20*math.log10(1/20),places=2)
+        self.assertLess(f[-1]["phase_deg"],-179)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+=== FILE: scripts/test_interfaces.py ===
+"""Numerical/export/schema checks; no ROS, Scilab or Xcos execution implied."""
+import ast
+import copy
+import csv
+import importlib.util
+import json
+import math
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+import unittest
+import xml.etree.ElementTree as ET
+
+from export_interfaces import (ASSETS, BLOCKS, ROOT, PlantSimulator, export_bundle,
+                               load_diagram, sample_count, select_plant, validate_diagram)
+
+
+def example(kind="massSpring", params=None):
+    value = json.loads((ASSETS / "example-diagram.json").read_text())
+    value["settings"] = {"dt": .01, "duration": 1}
+    value["nodes"][1]["type"] = kind
+    value["nodes"][1]["params"] = params or {}
+    return value
+
+
+class ModelTests(unittest.TestCase):
+    def test_mass_spring_matrix_mapping_and_initial_conditions(self):
+        config = select_plant(example(params={"m": 2, "b": 3, "k": 8,
+                                              "initialPosition": .4, "initialVelocity": -.2}), "plant")
+        self.assertEqual(config["A"], [[0, 1], [-4, -1.5]])
+        self.assertEqual(config["B"], [[0], [.5]])
+        self.assertEqual(config["C"], [[1, 0]])
+        self.assertEqual(config["D"], [[0]])
+        self.assertEqual(config["x0"], [.4, -.2])
+        derivative = PlantSimulator(config).derivative([.4, -.2], 6)
+        self.assertAlmostEqual(derivative[0], -.2)
+        self.assertAlmostEqual(derivative[1], (6 - 3*(-.2) - 8*.4)/2)
+
+    def test_first_order_mapping_and_exact_response(self):
+        diagram = example("firstOrder", {"gain": 2, "tau": .5, "initial": 3})
+        config = select_plant(diagram, "plant", "W", "K")
+        self.assertEqual(config["A"], [[-2]])
+        self.assertEqual(config["B"], [[4]])
+        self.assertEqual(config["state_units"], ["K"])
+        sim = PlantSimulator(config)
+        for _ in range(50):
+            sim.advance(4)
+        self.assertAlmostEqual(sim.x[0], 8 + (3-8)*math.exp(-1), places=7)
+
+    def test_critical_damping_analytical_step_and_dt_convergence(self):
+        errors = []
+        for dt in (.1, .025):
+            diagram = example(params={"m": 1, "b": 2, "k": 1})
+            diagram["settings"]["dt"] = dt
+            sim = PlantSimulator(select_plant(diagram, "plant"))
+            while not sim.done:
+                sim.advance(1)
+            self.assertAlmostEqual(sim.x[0], 1-2*math.exp(-1), places=6)
+            self.assertAlmostEqual(sim.x[1], math.exp(-1), places=6)
+            errors.append(abs(sim.x[0] - (1-2*math.exp(-1))))
+        self.assertLess(errors[1], errors[0])
+
+    def test_receipt_watchdog_and_no_wall_time_catchup(self):
+        config = select_plant(example("firstOrder"), "plant", watchdog_s=.5)
+        sim = PlantSimulator(config)
+        sim.tick(10)
+        self.assertEqual(sim.x, [0])
+        self.assertTrue(sim.receive(2, 10.1))
+        fresh = sim.tick(10.2)
+        self.assertEqual(fresh["applied_input"], 2)
+        self.assertFalse(fresh["input_stale"])
+        stale = sim.tick(1000)
+        self.assertEqual(stale["applied_input"], 0)
+        self.assertTrue(stale["input_stale"])
+        self.assertAlmostEqual(stale["simulation_time_s"], .03)
+        self.assertLess(stale["state"][0], fresh["state"][0])
+
+    def test_invalid_input_clears_command_and_backwards_clock(self):
+        sim = PlantSimulator(select_plant(example(), "plant"))
+        sim.receive(2, 1)
+        self.assertFalse(sim.receive(math.nan, 1.1))
+        self.assertEqual(sim.tick(1.2)["applied_input"], 0)
+        sim.receive(2, 1.3)
+        self.assertEqual(sim.tick(1.4)["applied_input"], 2)
+        self.assertEqual(sim.tick(1.0)["applied_input"], 0)
+        self.assertIsNone(sim.last_receipt)
+        self.assertFalse(sim.receive(1e7, 1.5))
+
+    def test_bounded_duration_and_edited_matrix_rejection(self):
+        config = select_plant(example(), "plant")
+        sim = PlantSimulator(config)
+        for _ in range(150):
+            sim.advance(1)
+        self.assertTrue(sim.done)
+        self.assertEqual(sim.index, 100)
+        config["A"][0][0] = 1000
+        with self.assertRaisesRegex(ValueError, "differs"):
+            PlantSimulator(config)
+
+
+class SchemaTests(unittest.TestCase):
+    def test_explicit_selection_and_unsupported_block(self):
+        for identifier in (None, "missing", "input"):
+            with self.subTest(identifier=identifier), self.assertRaises(ValueError):
+                select_plant(example(), identifier)
+        with self.assertRaisesRegex(ValueError, "no implicit unit conversion"):
+            select_plant(example(), "plant", "kgf", "m")
+
+    def test_unknown_fields_nonfinite_bounds_and_reserved_id(self):
+        diagrams = []
+        raw = example(); raw["unexpected"] = 1; diagrams.append(raw)
+        raw = example(); raw["nodes"][1]["params"]["fake"] = 1; diagrams.append(raw)
+        raw = example(); raw["nodes"][1]["params"]["m"] = math.nan; diagrams.append(raw)
+        raw = example(); raw["nodes"][1]["params"]["m"] = .001; diagrams.append(raw)
+        raw = example(); raw["nodes"][1]["params"]["m"] = 10**400; diagrams.append(raw)
+        raw = example(); raw["settings"]["dt"] = True; diagrams.append(raw)
+        raw = example(); raw["nodes"][0]["id"] = "constructor"; diagrams.append(raw)
+        for raw in diagrams:
+            with self.subTest(raw=raw), self.assertRaises(ValueError):
+                validate_diagram(raw)
+
+    def test_duplicate_unconnected_and_ambiguous_graph(self):
+        diagrams = []
+        raw = example(); raw["nodes"].append(copy.deepcopy(raw["nodes"][0])); diagrams.append(raw)
+        raw = example(); raw["edges"].pop(0); diagrams.append(raw)
+        raw = example(); edge = copy.deepcopy(raw["edges"][0]); edge["id"] = "duplicate_driver"; raw["edges"].append(edge); diagrams.append(raw)
+        raw = example(); raw["nodes"][1]["type"] = "gain"; raw["nodes"][1]["params"] = {}; raw["edges"][0]["from"]["node"] = "plant"; diagrams.append(raw)
+        for raw in diagrams:
+            with self.subTest(raw=raw), self.assertRaises(ValueError):
+                validate_diagram(raw)
+
+    def test_json_duplicate_keys_and_nonfinite_tokens(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            for payload in ('{"schema":"a","schema":"b"}', '{"value":NaN}', '{"value":Infinity}'):
+                path.write_text(payload)
+                with self.assertRaises(ValueError):
+                    load_diagram(path)
+
+    def test_sample_count_rounding(self):
+        self.assertEqual(sample_count(.3, .1), 3)
+        self.assertEqual(sample_count(.3 + 1e-14, .1), 3)
+        self.assertEqual(sample_count(.301, .1), 4)
+
+    @unittest.skipUnless(shutil.which("node"), "optional Node parity check; exporter itself is standard-library Python")
+    def test_browser_schema_bounds_presets_and_reserved_id_parity(self):
+        command = '''const B=require(process.argv[1]);
+const presets=[B.createDefaultDiagram(),B.createThermalDiagram(),B.createTankDiagram()];
+const cases=[...presets];
+for(const settings of [{dt:.1,duration:.3},{dt:.1,duration:.301}]){const d=B.createDefaultDiagram();d.settings=settings;cases.push(d);}
+const bad=B.createDefaultDiagram();bad.nodes[0].id='constructor';cases.push(bad);
+const badBound=B.createDefaultDiagram();badBound.nodes.find(n=>n.type==='massSpring').params.m=.001;cases.push(badBound);
+process.stdout.write(JSON.stringify({schema:B.SCHEMA,library:B.library,bounds:B.bounds,cases:cases.map(d=>{try{const v=B.validateDiagram(d);return {d,ok:true,stepCount:v.stepCount};}catch(e){return {d,ok:false};}})}));'''
+        process = subprocess.run(["node", "-e", command, str(ROOT / "assets/browser-lab/block-engine.js")],
+                                 check=True, capture_output=True, text=True, timeout=10)
+        browser = json.loads(process.stdout)
+        self.assertEqual(browser["schema"], "mechatronics-block-diagram/v1")
+        self.assertEqual(set(browser["library"]), set(BLOCKS))
+        for kind, (inputs, defaults, bounds) in BLOCKS.items():
+            self.assertEqual(browser["library"][kind]["inputs"], inputs)
+            self.assertEqual(browser["library"][kind]["defaults"], defaults)
+            self.assertEqual(browser["bounds"][kind], {k: list(v) for k, v in bounds.items()})
+        for case in browser["cases"]:
+            if case["ok"]:
+                result = validate_diagram(case["d"])
+                self.assertEqual(sample_count(result["settings"]["duration"], result["settings"]["dt"]), case["stepCount"])
+                for node in result["nodes"]:
+                    if node["type"] in ("massSpring", "firstOrder"):
+                        config = select_plant(case["d"], node["id"])
+                        self.assertEqual(config["parameters"], node["params"])
+            else:
+                with self.assertRaises(ValueError):
+                    validate_diagram(case["d"])
+
+
+class ExportTests(unittest.TestCase):
+    def test_export_numeric_files_generated_python_xml_and_core(self):
+        config = select_plant(example(), "plant")
+        with tempfile.TemporaryDirectory() as temporary:
+            out = Path(temporary) / "export"
+            report = export_bundle(config, out)
+            self.assertEqual(report["reference_rows"], 101)
+            with (out / "reference.csv").open() as stream:
+                rows = [[float(v) for v in row] for row in csv.reader(stream)]
+            self.assertEqual(rows[0], [0, 1, 0, 0, 0])
+            self.assertAlmostEqual(rows[-1][0], 1)
+            self.assertTrue(all(math.isfinite(v) for row in rows for v in row))
+            data = (out / "plant_data.sce").read_text()
+            for key in ("A", "B", "C", "D"):
+                literal = re.search(r"^"+key+r" = \[([^\]]+)\];", data, re.M).group(1)
+                self.assertEqual([[float(value) for value in row.split()] for row in literal.split(";")], config[key])
+            analysis = (out / "scilab_analysis.sce").read_text()
+            self.assertIn("csim(mech_unit_input, t, plant, x0", analysis)
+            self.assertIn("bode(plant", analysis)
+            self.assertIn("reference(:, 4:$)", analysis)
+            self.assertIn("xcos();", (out / "xcos_setup.sce").read_text())
+            self.assertFalse(list(out.glob("*.zcos")))
+            atoms = [line for line in (out / "atoms_setup.sce").read_text().splitlines() if not line.lstrip().startswith("//")]
+            self.assertNotIn("atomsInstall", "\n".join(atoms))
+            self.assertNotIn("atomsLoad", "\n".join(atoms))
+            package = out / "ros2_ws/src/mechatronics_sim"
+            for source in package.rglob("*.py"):
+                ast.parse(source.read_text(), filename=str(source))
+            manifest = ET.parse(package / "package.xml").getroot()
+            self.assertEqual(manifest.findtext("export/build_type"), "ament_python")
+            self.assertEqual({el.text for el in manifest.findall("exec_depend")}, {"rclpy", "std_msgs"})
+            spec = importlib.util.spec_from_file_location("generated_interface_core", package / "mechatronics_sim/sim_core.py")
+            module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+            with (package / "mechatronics_sim/plant.json").open() as stream:
+                sim = module.PlantSimulator(json.load(stream))
+            while not sim.done:
+                sample = sim.advance(1)
+            self.assertAlmostEqual(sample["output"], rows[-1][2])
+            with self.assertRaisesRegex(ValueError, "not overwritten"):
+                export_bundle(config, out)
+
+    def test_cli_smoke(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            diagram = Path(temporary) / "diagram.json"
+            diagram.write_text(json.dumps(example("firstOrder", {"gain": .2, "tau": 100, "initial": 0})))
+            process = subprocess.run([__import__("sys").executable, "-B", str(ROOT / "scripts/export_interfaces.py"),
+                                      "--diagram", str(diagram), "--plant-node", "plant", "--out", str(Path(temporary)/"kit"),
+                                      "--input-unit", "W", "--output-unit", "K"],
+                                     capture_output=True, text=True, check=True, timeout=20)
+            report = json.loads(process.stdout)
+            self.assertEqual(report["plant_id"], "plant")
+            self.assertEqual(report["reference_rows"], 101)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+=== FILE: scripts/test_manufacturing.py ===
+import unittest
+from manufacturing_calcs import mmc, little_lead_time, kingman_wait, kanban_cards, capability, zero_failure_upper_bound
+
+
+class ManufacturingTests(unittest.TestCase):
+    def test_mm1_and_little(self):
+        q=mmc(6,8)
+        self.assertAlmostEqual(q['utilisation'],.75)
+        self.assertAlmostEqual(q['mean_queue_wait_h'],.375)
+        self.assertAlmostEqual(q['mean_system_time_h'],.5)
+        self.assertAlmostEqual(q['mean_system_items'],3)
+        self.assertAlmostEqual(little_lead_time(q['mean_system_items'],6),q['mean_system_time_h'])
+
+    def test_mmc_known_erlang_c(self):
+        q=mmc(10,6,2)
+        self.assertAlmostEqual(q['probability_wait'],25/33)
+        self.assertAlmostEqual(q['mean_queue_wait_h'],25/66)
+        self.assertAlmostEqual(q['mean_system_items'],60/11)
+        self.assertLess(mmc(6,8,2)['mean_queue_wait_h'],mmc(6,8,1)['mean_queue_wait_h'])
+
+    def test_zero_arrivals_and_unstable_queues(self):
+        q=mmc(0,8,2)
+        self.assertEqual(q['mean_queue_wait_h'],0)
+        self.assertAlmostEqual(q['mean_system_time_h'],1/8)
+        for f,args in ((mmc,(8,8,1)),(mmc,(20,8,2)),(kingman_wait,(8,.125,1,1)),(mmc,(1,8,1.5))):
+            with self.assertRaises(ValueError): f(*args)
+
+    def test_kingman_reduces_to_mm1(self):
+        self.assertAlmostEqual(kingman_wait(6,.125,1,1),mmc(6,8)['mean_queue_wait_h'])
+        self.assertAlmostEqual(kingman_wait(6,.125,1,.5),.234375)
+
+    def test_kanban_rounding_and_sensitivity(self):
+        self.assertEqual(kanban_cards(12,1.5,6,.2),4)
+        self.assertGreater(kanban_cards(12,3,6,.2),4)
+        with self.assertRaises(ValueError): kanban_cards(12,1.5,0,.2)
+
+    def test_capability_centering(self):
+        q=capability(9.8,10.2,10.05,.04)
+        self.assertAlmostEqual(q['cp'],5/3)
+        self.assertAlmostEqual(q['cpk'],1.25)
+        centered=capability(9.8,10.2,10,.04)
+        self.assertAlmostEqual(centered['cp'],centered['cpk'])
+
+    def test_zero_failure_bound(self):
+        self.assertAlmostEqual(zero_failure_upper_bound(10),1-.05**.1)
+        self.assertGreater(zero_failure_upper_bound(10),.25)
+        self.assertLess(zero_failure_upper_bound(59),.05)
+        with self.assertRaises(ValueError): zero_failure_upper_bound(0)
+
+
+if __name__=='__main__': unittest.main()
+
+
+=== FILE: scripts/test_thermal_fluid.py ===
+"""Independent physical/limiting-case checks for educational thermal/fluid helpers."""
+import json
+import math
+import unittest
+
+from thermal_fluid_calcs import (
+    buoyancy_force, darcy_friction_factor, demo, hydrostatic_gauge_pressure,
+    lumped_temperature, minor_pressure_loss, net_radiation_w, pipe_pressure_loss,
+    plane_wall_resistance, pump_power, reynolds_number, sealed_gas_pressure,
+)
+
+
+class ThermalTests(unittest.TestCase):
+    def test_initial_equilibrium_and_time_constant(self):
+        self.assertEqual(lumped_temperature(293.15, 293.15, 20, 100, 2, 0), 293.15)
+        self.assertAlmostEqual(lumped_temperature(303.15, 293.15, 20, 100, 2, 500), 303.15)
+        # At one time constant, 1-exp(-1) of the 10 K rise has occurred.
+        self.assertAlmostEqual(lumped_temperature(293.15, 293.15, 20, 100, 2, 50),
+                               293.15 + 10 * (1 - math.exp(-1)))
+        self.assertAlmostEqual(lumped_temperature(293.15, 293.15, 20, 100, 2, 2000),
+                               303.15)
+
+    def test_adiabatic_energy_and_zero_conductance_limit(self):
+        final = lumped_temperature(300, 290, 20, 100, 0, 50)
+        self.assertAlmostEqual(100 * (final - 300), 20 * 50)
+        self.assertAlmostEqual(lumped_temperature(300, 290, 20, 100, 1e-12, 50),
+                               final, places=9)
+        self.assertAlmostEqual(lumped_temperature(300, 290, -20, 100, 0, 50), 290)
+
+    def test_heat_balance_derivative(self):
+        # Independent numerical derivative must satisfy the specified ODE.
+        t, dt = 23.0, 0.001
+        temp = lambda at: lumped_temperature(280, 293, 12, 75, 1.5, at)
+        derivative = (temp(t + dt) - temp(t - dt)) / (2 * dt)
+        self.assertAlmostEqual(75 * derivative, 12 - 1.5 * (temp(t) - 293), places=6)
+
+    def test_time_composition(self):
+        at_20 = lumped_temperature(280, 293, 12, 75, 1.5, 20)
+        two_intervals = lumped_temperature(at_20, 293, 12, 75, 1.5, 30)
+        self.assertAlmostEqual(two_intervals,
+                               lumped_temperature(280, 293, 12, 75, 1.5, 50))
+
+    def test_wall_resistance_and_fourier_heat_rate(self):
+        resistance = plane_wall_resistance(0.01, 0.2, 0.1)
+        self.assertAlmostEqual(resistance, 0.5)
+        # A 20 K drop gives 40 W; doubling area doubles that rate.
+        self.assertAlmostEqual(20 / resistance, 40)
+        self.assertAlmostEqual(plane_wall_resistance(0.01, 0.2, 0.2), resistance / 2)
+        self.assertEqual(plane_wall_resistance(0, 0.2, 0.1), 0)
+
+    def test_radiation_zero_sign_and_independent_value(self):
+        self.assertEqual(net_radiation_w(0.8, 0.1, 300, 300), 0)
+        self.assertEqual(net_radiation_w(0, 0.1, 330, 300), 0)
+        hot = net_radiation_w(0.8, 0.1, 330, 300)
+        self.assertGreater(hot, 0)
+        self.assertAlmostEqual(net_radiation_w(0.8, 0.1, 300, 330), -hot)
+        self.assertAlmostEqual(hot, 5.670374419e-8 * 0.8 * 0.1 * (330**4 - 300**4))
+
+
+class FluidTests(unittest.TestCase):
+    def test_reynolds_laminar_and_hagen_poiseuille(self):
+        # rho=1000, mu=.001, D=.01, mean v=.1 => Re=1000.
+        self.assertAlmostEqual(reynolds_number(1000, 0.1, 0.01, 0.001), 1000)
+        flow = 0.1 * math.pi * 0.01**2 / 4
+        result = pipe_pressure_loss(1000, 0.001, 0.01, 2, flow)
+        self.assertEqual(result["regime"], "laminar")
+        self.assertAlmostEqual(result["darcy_friction_factor"], 0.064)
+        # Independent Poiseuille form, dp=128*mu*L*Q/(pi*D^4).
+        reference = 128 * 0.001 * 2 * flow / (math.pi * 0.01**4)
+        self.assertAlmostEqual(result["total_loss_pa"], reference)
+        self.assertAlmostEqual(reference, 64.0)
+
+    def test_turbulent_roughness_and_colebrook_residual(self):
+        smooth = darcy_friction_factor(100000, 0)
+        rough = darcy_friction_factor(100000, 0.001)
+        self.assertGreater(rough, smooth)
+        self.assertTrue(0.01 < smooth < 0.03)
+        # Haaland approximates Colebrook; verify an independently expressed
+        # implicit relation at this one point, without claiming uniform accuracy.
+        inverse_root = 1 / math.sqrt(rough)
+        colebrook_rhs = -2 * math.log10(0.001 / 3.7 + 2.51 * inverse_root / 100000)
+        self.assertLess(abs(inverse_root - colebrook_rhs) / colebrook_rhs, 0.01)
+        flow = 0.0002
+        result = pipe_pressure_loss(1000, 0.001, 0.02, 2, flow, 0.00001, 2)
+        self.assertEqual(result["regime"], "turbulent_haaland")
+        self.assertGreater(result["major_loss_pa"], 0)
+        self.assertAlmostEqual(result["total_loss_pa"],
+                               result["major_loss_pa"] + result["minor_loss_pa"])
+
+    def test_transition_and_correlation_domain_rejected(self):
+        for re in (2300, 3000, 3999.999):
+            with self.subTest(reynolds=re), self.assertRaisesRegex(ValueError, "transitional"):
+                darcy_friction_factor(re)
+        self.assertGreater(darcy_friction_factor(4000), 0)
+        for re, rough in ((1e8 + 1, 0), (10000, 0.051), (0, 0)):
+            with self.subTest(reynolds=re, roughness=rough), self.assertRaises(ValueError):
+                darcy_friction_factor(re, rough)
+        transition_flow = 0.3 * math.pi * 0.01**2 / 4  # Re=3000
+        with self.assertRaisesRegex(ValueError, "transitional"):
+            pipe_pressure_loss(1000, 0.001, 0.01, 2, transition_flow)
+
+    def test_minor_loss_and_zero_flow(self):
+        self.assertEqual(minor_pressure_loss(3, 1000, 2), 6000)
+        result = pipe_pressure_loss(1000, 0.001, 0.02, 2, 0, minor_k=3)
+        self.assertEqual(result["regime"], "no_flow")
+        self.assertIsNone(result["darcy_friction_factor"])
+        for name in ("mean_speed_m_s", "reynolds", "major_loss_pa", "minor_loss_pa", "total_loss_pa"):
+            self.assertEqual(result[name], 0)
+
+    def test_hydrostatic_buoyancy_and_gravity_scaling(self):
+        self.assertAlmostEqual(hydrostatic_gauge_pressure(1000, 2), 19613.3)
+        self.assertAlmostEqual(buoyancy_force(1000, 0.003), 29.41995)
+        self.assertEqual(hydrostatic_gauge_pressure(1000, 0), 0)
+        self.assertEqual(buoyancy_force(1000, 0), 0)
+        self.assertAlmostEqual(hydrostatic_gauge_pressure(1000, 2, 4.903325), 19613.3 / 2)
+
+    def test_pump_energy_and_efficiency_boundary(self):
+        result = pump_power(1000, 0.001, 10, 0.5)
+        self.assertAlmostEqual(result["hydraulic_power_w"], 98.0665)
+        self.assertAlmostEqual(result["input_power_w"], 196.133)
+        self.assertAlmostEqual(result["input_power_w"] * 0.5, result["hydraulic_power_w"])
+        ideal = pump_power(1000, 0.001, 10, 1)
+        self.assertEqual(ideal["input_power_w"], ideal["hydraulic_power_w"])
+        self.assertEqual(pump_power(1000, 0, 10, 0.5)["hydraulic_power_w"], 0)
+
+    def test_sealed_ideal_gas_absolute_pressure(self):
+        self.assertEqual(sealed_gas_pressure(100000, 300, 600), 200000)
+        self.assertEqual(sealed_gas_pressure(100000, 300, 300), 100000)
+
+
+class InputAndDemoTests(unittest.TestCase):
+    def test_guide_worked_examples(self):
+        self.assertAlmostEqual(lumped_temperature(298.15, 298.15, 50, 500, 5, 30),
+                               300.7418178, places=7)
+        self.assertAlmostEqual(lumped_temperature(298.15, 298.15, 50, 500, 5, 100),
+                               304.4712056, places=7)
+        pipe = pipe_pressure_loss(1000, 0.001, 0.01, 2, 0.00001)
+        self.assertAlmostEqual(pipe["reynolds"], 1273.2395447, places=7)
+        self.assertAlmostEqual(pipe["major_loss_pa"], 81.48733086, places=7)
+        self.assertAlmostEqual(pump_power(1000, 0.001, 1, 0.6, 9.81)["input_power_w"], 16.35)
+
+    def test_nonfinite_inputs_each_helper(self):
+        calls = (
+            (lumped_temperature, (300, 290, 20, 100, 2, 50)),
+            (plane_wall_resistance, (0.01, 0.2, 0.1)),
+            (net_radiation_w, (0.8, 0.1, 330, 300)),
+            (reynolds_number, (1000, 0.1, 0.01, 0.001)),
+            (darcy_friction_factor, (10000, 0.001)),
+            (minor_pressure_loss, (2, 1000, 0.1)),
+            (pipe_pressure_loss, (1000, 0.001, 0.02, 2, 0.0002, 0.00001, 2)),
+            (hydrostatic_gauge_pressure, (1000, 2, 9.80665)),
+            (buoyancy_force, (1000, 0.003, 9.80665)),
+            (pump_power, (1000, 0.0002, 3, 0.6, 9.80665)),
+            (sealed_gas_pressure, (101325, 293.15, 333.15)),
+        )
+        for function, original in calls:
+            for index in range(len(original)):
+                for invalid in (math.nan, math.inf, -math.inf):
+                    args = list(original)
+                    args[index] = invalid
+                    with self.subTest(function=function.__name__, argument=index, value=invalid):
+                        with self.assertRaises(ValueError):
+                            function(*args)
+
+    def test_invalid_physical_domains(self):
+        calls = (
+            (lumped_temperature, (0, 290, 20, 100, 2, 50)),
+            (lumped_temperature, (300, 290, 20, 0, 2, 50)),
+            (lumped_temperature, (300, 290, 20, 100, -2, 50)),
+            (lumped_temperature, (300, 290, 20, 100, 2, -1)),
+            (lumped_temperature, (300, 290, -1000, 1, 0, 1)),
+            (plane_wall_resistance, (-0.01, 0.2, 0.1)),
+            (plane_wall_resistance, (0.01, 0, 0.1)),
+            (plane_wall_resistance, (0.01, 0.2, 0)),
+            (net_radiation_w, (1.1, 0.1, 330, 300)),
+            (net_radiation_w, (0.8, 0.1, -10, 300)),
+            (reynolds_number, (1000, -1, 0.01, 0.001)),
+            (reynolds_number, (1000, 1, 0.01, 0)),
+            (minor_pressure_loss, (-1, 1000, 1)),
+            (pipe_pressure_loss, (1000, 0.001, 0, 2, 0)),
+            (pipe_pressure_loss, (1000, 0.001, 0.02, 2, -1)),
+            (hydrostatic_gauge_pressure, (1000, -1)),
+            (buoyancy_force, (1000, -1)),
+            (pump_power, (1000, 0.001, 10, 0)),
+            (pump_power, (1000, 0.001, 10, 1.1)),
+            (pump_power, (1000, 0.001, -10, 0.6)),
+            (sealed_gas_pressure, (0, 300, 350)),
+            (sealed_gas_pressure, (100000, 0, 350)),
+        )
+        for function, args in calls:
+            with self.subTest(function=function.__name__, args=args), self.assertRaises(ValueError):
+                function(*args)
+
+    def test_demo_strict_json(self):
+        result = json.loads(json.dumps(demo(), allow_nan=False))
+        self.assertIn("calculated", result["evidence"])
+        self.assertIn("assumptions", result["thermal"])
+        self.assertEqual(result["pipe"]["result"]["regime"], "turbulent_haaland")
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+=== FILE: scripts/thermal_fluid_calcs.py ===
+#!/usr/bin/env python3
+"""SI educational heat/fluid helpers; standard library only, no hardware/network I/O.
+
+The models assume constant properties and are not CFD, pressure-vessel design,
+material qualification, or measured performance. All temperatures are kelvin;
+all pressures are pascals. Read each function's assumptions before applying it.
+"""
+import argparse
+import json
+import math
+
+STANDARD_GRAVITY_M_S2 = 9.80665
+STEFAN_BOLTZMANN_W_M2_K4 = 5.670374419e-8
+
+
+def _number(name, value, minimum=None, positive=False):
+    try:
+        result = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"{name} must be a finite number") from exc
+    if (not math.isfinite(result) or
+            (minimum is not None and result < minimum) or
+            (positive and result <= 0)):
+        raise ValueError(f"{name} is outside its finite allowed range")
+    return result
+
+
+def _efficiency(value):
+    result = _number("efficiency", value, positive=True)
+    if result > 1:
+        raise ValueError("efficiency must be in (0, 1]")
+    return result
+
+
+def lumped_temperature(initial_k, ambient_k, power_w, heat_capacity_j_k,
+                       thermal_conductance_w_k, time_s):
+    """Exact T(t) for C*dT/dt = P - UA*(T-Ta); returns kelvin.
+
+    Constant net heat input P (negative allows cooling), constant ambient Ta,
+    positive lumped heat capacity C, nonnegative conductance UA. Assumes the
+    body is adequately represented by one uniform temperature; assess internal
+    gradients/Biot number separately. No phase change or radiation nonlinearity.
+    UA=0 gives T=T0+P*t/C. A result at/below zero kelvin is rejected.
+    """
+    t0 = _number("initial temperature K", initial_k, positive=True)
+    ta = _number("ambient temperature K", ambient_k, positive=True)
+    power = _number("power W", power_w)
+    capacity = _number("heat capacity J/K", heat_capacity_j_k, positive=True)
+    conductance = _number("thermal conductance W/K", thermal_conductance_w_k,
+                          minimum=0)
+    duration = _number("time s", time_s, minimum=0)
+    if duration == 0:
+        return t0
+    time_over_capacity = _number("time/capacity", duration / capacity)
+    if conductance == 0:
+        return _number("calculated temperature K", t0 + power * time_over_capacity,
+                       positive=True)
+    exponent = _number("UA*t/C", conductance * time_over_capacity)
+    # expm1 avoids loss of the short-time temperature change when t << C/UA.
+    fraction = -math.expm1(-exponent)
+    response_ratio = fraction / exponent if exponent != 0 else 1.0
+    temperature = (t0 + (ta - t0) * fraction +
+                   power * time_over_capacity * response_ratio)
+    return _number("calculated temperature K", temperature, positive=True)
+
+
+def plane_wall_resistance(thickness_m, conductivity_w_m_k, area_m2):
+    """R=L/(k*A), K/W: steady 1-D planar conduction, constant k.
+
+    Excludes contact, convection, radiation, spreading resistance and heat
+    generation in the wall. Zero thickness gives zero resistance.
+    """
+    length = _number("thickness m", thickness_m, minimum=0)
+    conductivity = _number("conductivity W/(m K)", conductivity_w_m_k,
+                           positive=True)
+    area = _number("area m2", area_m2, positive=True)
+    denominator = _number("k*A", conductivity * area, positive=True)
+    return _number("thermal resistance K/W", length / denominator, minimum=0)
+
+
+def net_radiation_w(emissivity, area_m2, surface_k, surroundings_k):
+    """Net outward radiation eps*sigma*A*(Ts**4-Ta**4), watts.
+
+    Diffuse-gray surface in a large isothermal black enclosure, view factor 1;
+    constant emissivity. Positive means heat leaves the surface. Arbitrary
+    multiple surfaces need view factors/radiosity instead. Temperatures: K.
+    """
+    eps = _number("emissivity", emissivity, minimum=0)
+    if eps > 1:
+        raise ValueError("emissivity must be in [0, 1]")
+    area = _number("radiating area m2", area_m2, minimum=0)
+    ts = _number("surface temperature K", surface_k, positive=True)
+    ta = _number("surroundings temperature K", surroundings_k, positive=True)
+    if eps == 0 or area == 0 or ts == ta:
+        return 0.0
+    # Factored fourth-power difference reduces cancellation near equilibrium.
+    fourth_power_difference = (ts - ta) * (ts + ta) * (ts * ts + ta * ta)
+    return _number("net outward radiation W",
+                   eps * STEFAN_BOLTZMANN_W_M2_K4 * area * fourth_power_difference)
+
+
+def reynolds_number(density_kg_m3, speed_m_s, diameter_m, dynamic_viscosity_pa_s):
+    """Pipe Re=rho*v*D/mu, dimensionless; speed is a nonnegative magnitude."""
+    rho = _number("density kg/m3", density_kg_m3, positive=True)
+    speed = _number("speed m/s", speed_m_s, minimum=0)
+    diameter = _number("diameter m", diameter_m, positive=True)
+    viscosity = _number("dynamic viscosity Pa s", dynamic_viscosity_pa_s,
+                        positive=True)
+    return _number("Reynolds number", rho * speed * diameter / viscosity, minimum=0)
+
+
+def darcy_friction_factor(reynolds, relative_roughness=0.0):
+    """Darcy (not Fanning) factor for fully developed circular-pipe flow.
+
+    Laminar: 64/Re for 0<Re<2300. Transition 2300<=Re<4000 is rejected.
+    Turbulent: Haaland's explicit approximation to the Colebrook relation,
+      1/sqrt(f) = -1.8*log10((eps/D/3.7)**1.11 + 6.9/Re).
+    This educational helper deliberately bounds its turbulent inputs to
+    4000<=Re<=1e8 and 0<=eps/D<=0.05. Those limits are an implementation domain,
+    not a claim of a universal flow transition or guaranteed correlation error.
+    Disturbances/entrance conditions can shift actual transition. Assumes a
+    single-phase Newtonian fluid, fixed roughness and steady developed flow.
+    At zero flow f is undefined; pipe_pressure_loss handles that case separately.
+    """
+    re = _number("Reynolds number", reynolds, positive=True)
+    rough = _number("relative roughness", relative_roughness, minimum=0)
+    if rough > 0.05:
+        raise ValueError("relative roughness exceeds this helper's 0.05 limit")
+    if re < 2300:
+        return _number("Darcy friction factor", 64.0 / re, positive=True)
+    if re < 4000:
+        raise ValueError("transitional flow: no friction factor is provided for 2300<=Re<4000")
+    if re > 1e8:
+        raise ValueError("Reynolds number exceeds this helper's turbulent limit 1e8")
+    inverse_sqrt = -1.8 * math.log10((rough / 3.7) ** 1.11 + 6.9 / re)
+    return _number("Darcy friction factor", 1.0 / (inverse_sqrt * inverse_sqrt),
+                   positive=True)
+
+
+def minor_pressure_loss(loss_coefficient, density_kg_m3, speed_m_s):
+    """K*rho*v**2/2, Pa; K must refer to the stated section's velocity.
+
+    K is supplied, not inferred from an unidentified fitting. Losses sharing a
+    velocity reference may sum K. Reynolds-dependent fittings need suitable K.
+    """
+    coefficient = _number("minor-loss coefficient K", loss_coefficient, minimum=0)
+    rho = _number("density kg/m3", density_kg_m3, positive=True)
+    speed = _number("speed m/s", speed_m_s, minimum=0)
+    return _number("minor pressure loss Pa", coefficient * rho * speed * speed / 2,
+                   minimum=0)
+
+
+def pipe_pressure_loss(density_kg_m3, dynamic_viscosity_pa_s, diameter_m,
+                       length_m, flow_m3_s, roughness_m=0.0, minor_k=0.0):
+    """Darcy-Weisbach friction + minor loss for one constant-bore pipe, SI.
+
+    Q is a nonnegative volumetric flow magnitude. Returns positive dissipative
+    losses, not a signed pressure difference or static elevation head. Constant
+    density/viscosity, Newtonian incompressible single-phase fully developed
+    steady flow. Excludes entrance development, water hammer and cavitation.
+    Use pump/system-curve analysis separately; a pressure-loss number is not a
+    pump operating point. Minor K uses this pipe's mean speed.
+    """
+    rho = _number("density kg/m3", density_kg_m3, positive=True)
+    viscosity = _number("dynamic viscosity Pa s", dynamic_viscosity_pa_s,
+                        positive=True)
+    diameter = _number("diameter m", diameter_m, positive=True)
+    length = _number("length m", length_m, minimum=0)
+    flow = _number("volumetric flow m3/s", flow_m3_s, minimum=0)
+    roughness = _number("absolute roughness m", roughness_m, minimum=0)
+    coefficient = _number("minor-loss coefficient K", minor_k, minimum=0)
+    rough_ratio = _number("relative roughness", roughness / diameter, minimum=0)
+    if rough_ratio > 0.05:
+        raise ValueError("relative roughness exceeds this helper's 0.05 limit")
+    area = _number("pipe cross-sectional area m2", math.pi * diameter * diameter / 4,
+                   positive=True)
+    speed = _number("mean speed m/s", flow / area, minimum=0)
+    re = reynolds_number(rho, speed, diameter, viscosity)
+    if flow == 0:
+        factor, major, minor, regime = None, 0.0, 0.0, "no_flow"
+    else:
+        factor = darcy_friction_factor(re, rough_ratio)
+        major = _number("major pressure loss Pa",
+                        factor * (length / diameter) * rho * speed * speed / 2,
+                        minimum=0)
+        minor = minor_pressure_loss(coefficient, rho, speed)
+        regime = "laminar" if re < 2300 else "turbulent_haaland"
+    return {"flow_m3_s": flow, "mean_speed_m_s": speed, "reynolds": re,
+            "relative_roughness": rough_ratio, "regime": regime,
+            "darcy_friction_factor": factor, "major_loss_pa": major,
+            "minor_loss_pa": minor,
+            "total_loss_pa": _number("total pressure loss Pa", major + minor,
+                                     minimum=0)}
+
+
+def hydrostatic_gauge_pressure(density_kg_m3, depth_m, gravity_m_s2=STANDARD_GRAVITY_M_S2):
+    """rho*g*h, Pa relative to surface pressure; constant-density static fluid."""
+    rho = _number("density kg/m3", density_kg_m3, positive=True)
+    depth = _number("depth below surface m", depth_m, minimum=0)
+    gravity = _number("gravity m/s2", gravity_m_s2, positive=True)
+    return _number("hydrostatic gauge pressure Pa", rho * gravity * depth, minimum=0)
+
+
+def buoyancy_force(density_kg_m3, displaced_volume_m3, gravity_m_s2=STANDARD_GRAVITY_M_S2):
+    """Upward force rho*g*V, N, for static constant-density fluid.
+
+    V is submerged displaced volume. Net lift subtracts body weight; attitude
+    stability, drag and added mass require separate models.
+    """
+    rho = _number("fluid density kg/m3", density_kg_m3, positive=True)
+    volume = _number("displaced volume m3", displaced_volume_m3, minimum=0)
+    gravity = _number("gravity m/s2", gravity_m_s2, positive=True)
+    return _number("upward buoyancy N", rho * gravity * volume, minimum=0)
+
+
+def pump_power(density_kg_m3, flow_m3_s, head_m, efficiency,
+               gravity_m_s2=STANDARD_GRAVITY_M_S2):
+    """Hydraulic rho*g*Q*H and input power, W, for supplied operating point.
+
+    Head H is total developed head. Efficiency must describe the desired input
+    boundary: pump-only for shaft input or overall wire-to-water for electrical
+    input. Constant density; no claim about pump curve, NPSH or motor selection.
+    At zero useful hydraulic power the ideal estimate is zero; real no-load
+    electrical consumption cannot be inferred from this efficiency model.
+    """
+    rho = _number("density kg/m3", density_kg_m3, positive=True)
+    flow = _number("flow m3/s", flow_m3_s, minimum=0)
+    head = _number("head m", head_m, minimum=0)
+    eta = _efficiency(efficiency)
+    gravity = _number("gravity m/s2", gravity_m_s2, positive=True)
+    hydraulic = _number("hydraulic power W", rho * gravity * flow * head, minimum=0)
+    return {"hydraulic_power_w": hydraulic,
+            "input_power_w": _number("input power W", hydraulic / eta, minimum=0),
+            "efficiency": eta}
+
+
+def sealed_gas_pressure(initial_absolute_pa, initial_k, final_k):
+    """P2=P1*T2/T1, absolute Pa: sealed rigid volume, fixed ideal-gas amount.
+
+    Both temperatures are kelvin; do not use gauge pressure in the ratio.
+    Excludes leakage, condensation, changing volume and nonideal-gas effects.
+    This relation does not establish an enclosure's pressure rating.
+    """
+    pressure = _number("initial absolute pressure Pa", initial_absolute_pa,
+                       positive=True)
+    t1 = _number("initial temperature K", initial_k, positive=True)
+    t2 = _number("final temperature K", final_k, positive=True)
+    return _number("final absolute pressure Pa", pressure * (t2 / t1), positive=True)
+
+
+def demo():
+    """Illustrative values only; properties are assumptions, not material data."""
+    return {
+        "evidence": "calculated educational examples; no hardware/CFD validation",
+        "units": "SI: m, kg, s, K, Pa, W; temperatures absolute kelvin",
+        "thermal": {
+            "assumptions": "uniform body; T0=Ta=298.15 K, P=50 W, C=500 J/K, UA=5 W/K; constant properties",
+            "time_constant_s": 100.0,
+            "equilibrium_k": 308.15,
+            "temperature_after_30_s_k": lumped_temperature(298.15, 298.15, 50, 500, 5, 30),
+            "temperature_after_100_s_k": lumped_temperature(298.15, 298.15, 50, 500, 5, 100),
+            "adiabatic_temperature_after_100_s_k": lumped_temperature(298.15, 298.15, 50, 500, 0, 100),
+        },
+        "wall": {
+            "assumptions": "1-D plane wall L=0.01 m, k=0.2 W/(m K), A=0.1 m2; no contacts",
+            "resistance_k_w": plane_wall_resistance(0.01, 0.2, 0.1),
+        },
+        "radiation": {
+            "assumptions": "eps=0.8, A=0.1 m2, Ts=330 K, large black surroundings=293.15 K, view factor=1",
+            "net_outward_w": net_radiation_w(0.8, 0.1, 330, 293.15),
+        },
+        "pipe": {
+            "assumptions": "single-phase Newtonian fluid; rho=1000 kg/m3, mu=0.001 Pa s, D=0.02 m, L=2 m, Q=0.0002 m3/s, roughness=0.00001 m, K=2; developed flow",
+            "result": pipe_pressure_loss(1000, 0.001, 0.02, 2, 0.0002, 0.00001, 2),
+        },
+        "laminar_pipe": {
+            "assumptions": "illustrative water properties rho=1000 kg/m3, mu=0.001 Pa s, D=0.01 m, L=2 m, Q=0.00001 m3/s, K=0; developed flow, no elevation difference",
+            "result": pipe_pressure_loss(1000, 0.001, 0.01, 2, 0.00001),
+        },
+        "hydrostatics": {
+            "assumptions": "static constant rho=1000 kg/m3; depth=2 m; submerged displacement=0.003 m3",
+            "gauge_pressure_pa": hydrostatic_gauge_pressure(1000, 2),
+            "upward_buoyancy_n": buoyancy_force(1000, 0.003),
+        },
+        "pump": {
+            "assumptions": "rho=1000 kg/m3, supplied Q=0.001 m3/s and developed head=1 m, g=9.81 m/s2; overall electrical-to-hydraulic efficiency=0.6",
+            "result": pump_power(1000, 0.001, 1, 0.6, gravity_m_s2=9.81),
+        },
+        "sealed_gas": {
+            "assumptions": "fixed amount of ideal gas in rigid sealed volume; initial absolute pressure=101325 Pa, initial=293.15 K, final=333.15 K",
+            "final_absolute_pa": sealed_gas_pressure(101325, 293.15, 333.15),
+        },
+    }
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--demo", action="store_true", help="print illustrative SI examples as JSON")
+    args = parser.parse_args()
+    if args.demo:
+        print(json.dumps(demo(), indent=2, allow_nan=False))
+    else:
+        parser.print_help()
+
+
+=== FILE: assets/interfaces/ros_node.py ===
+"""Original rclpy adapter for a bounded educational plant simulation. MIT."""
+import json
+from pathlib import Path
+import time
+
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64, String
+
+from .sim_core import PlantSimulator
+
+
+class SimulationNode(Node):
+    def __init__(self):
+        super().__init__("mechatronics_selected_plant_sim")
+        default_path = str(Path(__file__).with_name("plant.json"))
+        self.declare_parameter("config", default_path)
+        config_path = self.get_parameter("config").value
+        with open(config_path, encoding="utf-8") as stream:
+            config = json.load(stream)
+        self.sim = PlantSimulator(config)
+        topic = "/mechatronics_sim/force_n" if config["plant_type"] == "massSpring" else "/mechatronics_sim/input"
+        self.state_pub = self.create_publisher(String, "/mechatronics_sim/state", 1)
+        self.metadata_pub = self.create_publisher(String, "/mechatronics_sim/metadata", 1)
+        self.command_sub = self.create_subscription(Float64, topic, self.on_input, 1)
+        self.metadata = json.dumps({"config": config, "input_topic": topic,
+                                   "watchdog_clock": "local monotonic receipt time",
+                                   "time_semantics": "one fixed simulation dt per timer callback; no catch-up"},
+                                  allow_nan=False)
+        self.timer = self.create_timer(self.sim.dt, self.on_tick)
+        self.metadata_timer = self.create_timer(1.0, self.publish_metadata)
+        self.get_logger().info("Simulation only. Input: " + topic + "; state: /mechatronics_sim/state")
+        self.publish_metadata()
+        self.publish_state(self.sim.snapshot())
+
+    def publish_metadata(self):
+        message = String()
+        message.data = self.metadata
+        self.metadata_pub.publish(message)
+
+    def publish_state(self, state):
+        message = String()
+        message.data = json.dumps(state, allow_nan=False)
+        self.state_pub.publish(message)
+
+    def on_input(self, message):
+        if not self.sim.receive(message.data, time.monotonic()):
+            self.get_logger().warning("Rejected invalid input; simulation command cleared to zero")
+
+    def on_tick(self):
+        try:
+            state = self.sim.tick(time.monotonic())
+        except ValueError as exc:
+            self.timer.cancel()
+            self.sim.command, self.sim.last_receipt = 0.0, None
+            state = self.sim.snapshot()
+            state.update({"fault": str(exc), "stopped": True})
+            self.publish_state(state)
+            self.get_logger().error("Simulation stopped: " + str(exc))
+            return
+        self.publish_state(state)
+        if state["completed"]:
+            self.timer.cancel()
+            self.get_logger().info("Configured simulation duration completed; restart node to reset")
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = None
+    try:
+        node = SimulationNode()
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if node is not None:
+            node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+=== FILE: assets/interfaces/sim_core.py ===
+"""Pure Python selected-plant simulator. MIT. No ROS or hardware dependency."""
+import math
+
+SCHEMA = "mechatronics-selected-plant/v1"
+
+
+def number(value, name, low=-1e308, high=1e308):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a number, not a string/bool")
+    # Compare bounds before isfinite, which may overflow on huge JSON integers.
+    if not low <= value <= high or not math.isfinite(value):
+        raise ValueError(f"{name} outside finite range [{low}, {high}]")
+    return float(value)
+
+
+def plant_matrices(kind, params):
+    """Known SISO continuous plants: x_dot=A*x+B*u, y=C*x+D*u."""
+    if not isinstance(params, dict):
+        raise ValueError("parameters must be an object")
+    if kind == "massSpring":
+        limits = {"m": (.02, 1000), "b": (.001, 100), "k": (.001, 1000),
+                  "initialPosition": (-100, 100), "initialVelocity": (-1000, 1000)}
+    elif kind == "firstOrder":
+        limits = {"gain": (-1e4, 1e4), "tau": (.001, 100), "initial": (-1e5, 1e5)}
+    else:
+        raise ValueError("only massSpring and firstOrder plants can be exported")
+    if set(params) != set(limits):
+        raise ValueError("plant parameter fields do not match the selected model")
+    p = {k: number(params[k], k, *bound) for k, bound in limits.items()}
+    if kind == "massSpring":
+        return {"A": [[0.0, 1.0], [-p["k"]/p["m"], -p["b"]/p["m"]]],
+                "B": [[0.0], [1.0/p["m"]]], "C": [[1.0, 0.0]], "D": [[0.0]],
+                "x0": [p["initialPosition"], p["initialVelocity"]],
+                "rate_bound_s_inv": max(math.sqrt(p["k"]/p["m"]), p["b"]/p["m"])}
+    return {"A": [[-1.0/p["tau"]]], "B": [[p["gain"]/p["tau"]]],
+            "C": [[1.0]], "D": [[0.0]], "x0": [p["initial"]],
+            "rate_bound_s_inv": 1.0/p["tau"]}
+
+
+def sample_count(duration, dt):
+    """Browser sample-count convention: snap near integral ratios, else ceil."""
+    ratio = duration/dt
+    nearest = math.floor(ratio + .5)
+    return nearest if abs(ratio-nearest) <= 1e-10*max(1, abs(ratio)) else math.ceil(ratio)
+
+
+class PlantSimulator:
+    """Fixed dt RK4 with bounded substeps and receipt-age input watchdog.
+
+    One call advances one simulation interval; elapsed wall time never causes
+    catch-up integration. Physical real-time performance is not established.
+    State order/units and plant-only boundary are carried in config metadata.
+    """
+    def __init__(self, config):
+        if not isinstance(config, dict) or config.get("schema") != SCHEMA:
+            raise ValueError("expected selected-plant schema")
+        self.config = config
+        expected = plant_matrices(config.get("plant_type"), config.get("parameters"))
+        # Do not run arbitrary edited matrices with the known model's step bound.
+        for key in ("A", "B", "C", "D", "x0"):
+            if config.get(key) != expected[key]:
+                raise ValueError(f"{key} differs from the documented plant parameters")
+        self.dt = number(config.get("dt_s"), "dt_s", .001, .1)
+        self.duration = number(config.get("requested_duration_s"), "duration", .1, 60)
+        self.max_steps = sample_count(self.duration, self.dt)
+        self.watchdog = number(config.get("watchdog_s"), "watchdog_s", .001, 10)
+        self.input_limit = number(config.get("input_limit"), "input_limit", .001, 1e6)
+        self.substeps = max(1, math.ceil(self.dt * expected["rate_bound_s_inv"] / .1))
+        if self.substeps > 25000 or self.substeps * self.max_steps > 20000000:
+            raise ValueError("selected plant exceeds bounded integration workload")
+        self.A, self.B, self.C, self.D = (expected[k] for k in ("A", "B", "C", "D"))
+        self.x = list(expected["x0"])
+        self.index = 0
+        self.command = 0.0
+        self.last_receipt = None
+        self.last_wall = None
+        self.last_input = 0.0
+        self.stale = True
+
+    @property
+    def done(self):
+        return self.index >= self.max_steps
+
+    def receive(self, value, wall_time_s):
+        """Receive scalar command; invalid/out-of-envelope command clears it.
+
+        wall_time_s is local monotonic receipt time, not a sender timestamp.
+        The Float64 ROS transport cannot establish age before local receipt.
+        """
+        try:
+            now = number(wall_time_s, "monotonic receipt time", 0)
+            command = number(value, "input", -self.input_limit, self.input_limit)
+            if ((self.last_wall is not None and now < self.last_wall) or
+                    (self.last_receipt is not None and now < self.last_receipt)):
+                raise ValueError("monotonic receipt clock moved backwards")
+        except ValueError:
+            self.command, self.last_receipt = 0.0, None
+            return False
+        self.command, self.last_receipt = command, now
+        return True
+
+    def derivative(self, state, value):
+        return [sum(a*x for a, x in zip(row, state)) + self.B[i][0]*value
+                for i, row in enumerate(self.A)]
+
+    def advance(self, value):
+        """One deterministic held-input step, for offline reference/tests."""
+        value = number(value, "input", -self.input_limit, self.input_limit)
+        if self.done:
+            return self.snapshot()
+        h = self.dt / self.substeps
+        x = list(self.x)
+        for _ in range(self.substeps):
+            a = self.derivative(x, value)
+            b = self.derivative([v+h*q/2 for v, q in zip(x, a)], value)
+            c = self.derivative([v+h*q/2 for v, q in zip(x, b)], value)
+            d = self.derivative([v+h*q for v, q in zip(x, c)], value)
+            x = [v+h*(aa+2*bb+2*cc+dd)/6 for v, aa, bb, cc, dd in zip(x, a, b, c, d)]
+            for item in x:
+                number(item, "numerical state envelope", -1e8, 1e8)
+        self.x = x
+        self.index += 1
+        self.last_input = value
+        return self.snapshot()
+
+    def tick(self, wall_time_s):
+        """Use zero input if no command, stale receipt or backwards clock."""
+        now = number(wall_time_s, "monotonic tick time", 0)
+        backwards = self.last_wall is not None and now < self.last_wall
+        self.last_wall = now
+        self.stale = (backwards or self.last_receipt is None or
+                      now < self.last_receipt or now - self.last_receipt > self.watchdog)
+        if backwards:
+            self.command, self.last_receipt = 0.0, None
+        return self.advance(0.0 if self.stale else self.command)
+
+    def snapshot(self):
+        return {"simulation_time_s": self.index*self.dt, "step_index": self.index,
+                "state": list(self.x), "output": sum(c*x for c, x in zip(self.C[0], self.x)),
+                "applied_input": self.last_input, "input_stale": self.stale,
+                "completed": self.done, "dt_s": self.dt,
+                "state_order": self.config["state_order"],
+                "state_units": self.config["state_units"],
+                "input_unit": self.config["input_unit"], "output_unit": self.config["output_unit"],
+                "boundary": "selected plant simulation only; no controller or hardware bridge"}

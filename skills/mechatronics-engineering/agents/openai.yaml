@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mechatronics Engineering"
+  short_description: "Learn, design, validate and manufacture robotic systems"
+  default_prompt: "Use $mechatronics-engineering to turn my robotics idea into a checked design, prototype and manufacturing plan while explaining the terminology."

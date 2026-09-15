@@ -1,0 +1,63 @@
+{
+  "schema": "mechatronics-block-diagram/v1",
+  "settings": {
+    "dt": 0.05,
+    "duration": 30
+  },
+  "nodes": [
+    {
+      "id": "inflow",
+      "type": "constant",
+      "x": 55,
+      "y": 130,
+      "label": "Inflow / m³·s⁻¹",
+      "params": {
+        "value": 0.001
+      }
+    },
+    {
+      "id": "tank",
+      "type": "firstOrder",
+      "x": 360,
+      "y": 130,
+      "label": "Linear tank / m",
+      "params": {
+        "gain": 1000,
+        "tau": 50,
+        "initial": 0
+      }
+    },
+    {
+      "id": "level",
+      "type": "scope",
+      "x": 680,
+      "y": 130,
+      "label": "Level / m",
+      "params": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "inflow_tank",
+      "from": {
+        "node": "inflow",
+        "port": "out"
+      },
+      "to": {
+        "node": "tank",
+        "port": "in"
+      }
+    },
+    {
+      "id": "tank_level",
+      "from": {
+        "node": "tank",
+        "port": "out"
+      },
+      "to": {
+        "node": "level",
+        "port": "in"
+      }
+    }
+  ]
+}
