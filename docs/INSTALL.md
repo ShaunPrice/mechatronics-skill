@@ -12,6 +12,8 @@ cd mechatronics-skill
 python3 scripts/build_packages.py
 ```
 
+For prebuilt files, open the repository’s private Releases page while signed in and download the skill ZIP and both standalone HTML pages.
+
 Alternatively use GitHub's authenticated **Code → Download ZIP**, extract it, and run the build command from that folder. The browser source runs immediately without building; packaging requires Python 3.9+. Never place an access token into a shared command, file or prompt.
 
 ## Claude web/Desktop: upload the skill
@@ -65,6 +67,10 @@ This route uses explicit instructions plus reference files and does not depend o
 Instructions govern behaviour; Knowledge supplies reference material. A ZIP uploaded as Knowledge is not equivalent to installing/executing a native skill. If files cannot be read in your surface, attach the relevant text sections in the conversation instead. [OpenAI's GPT guide](https://help.openai.com/en/articles/8554397-creating-a-gpt) and [Projects guide](https://help.openai.com/en/articles/10169521-using-projects-in-chatgpt) explain these distinctions.
 
 For a one-off chat, paste `Instructions.txt`, attach the relevant reference/template files, and explicitly ask the assistant to use them. Conversation context may need to be transferred when switching platforms; save the project dossier rather than assuming memory is shared.
+
+## Native engineering tools
+
+The browser pages run independently. For native analysis and middleware tests, follow the [Scilab/Xcos/ATOMS/ROS 2 interface guide](../skills/mechatronics-engineering/references/toolchain-interfaces.md) and [ROS 2 Docker instructions](../integrations/ros2-docker/README.md). The Docker environment builds a generated simulation package and tests its ROS topics; it does not require a physical robot.
 
 ## Smoke tests after installation
 

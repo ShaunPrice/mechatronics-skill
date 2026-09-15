@@ -1,12 +1,28 @@
+/* Pointer-gesture state shared by the UI and its interaction unit tests. */
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.MechConnections=api;}(typeof globalThis!=='undefined'?globalThis:this,function(){
+  'use strict';
+  class PortDragGesture {
+    constructor(threshold=5){this.threshold=threshold;this.current=null;}
+    start(event,from){if(this.current)return false;this.current={pointerId:event.pointerId,from:{...from},startX:event.clientX,startY:event.clientY,clientX:event.clientX,clientY:event.clientY,dragging:false,target:null};return true;}
+    move(event,target=null){const state=this.current;if(!state||event.pointerId!==state.pointerId)return null;state.clientX=event.clientX;state.clientY=event.clientY;state.dragging=state.dragging||Math.hypot(state.clientX-state.startX,state.clientY-state.startY)>=this.threshold;state.target=target?{...target}:null;return state;}
+    finish(event,target=null){const state=this.move(event,target);if(!state)return null;this.current=null;return {kind:state.dragging?'drop':'click',from:state.from,target:state.dragging&&state.target&&state.target.direction==='in'?{node:state.target.node,port:state.target.port}:null,pointerId:state.pointerId};}
+    cancel(pointerId){if(!this.current||(pointerId!==undefined&&pointerId!==this.current.pointerId))return null;const state=this.current;this.current=null;return state;}
+  }
+  function connectionCandidate(diagram,from,to){const next=JSON.parse(JSON.stringify(diagram));let index=1;while(next.edges.some(edge=>edge.id==='w'+index))index++;const edge={id:'w'+index,from:{node:from.node,port:from.port},to:{node:to.node,port:to.port}};next.edges.push(edge);return {diagram:next,edge};}
+  return {PortDragGesture,connectionCandidate};
+}));
 /* Interactive editor for the explicit MechBlocks scalar graph. No code evaluation or network requests. */
 (function(){
   'use strict';
+  if(typeof document==='undefined')return;
   const B=window.MechBlocks,$=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg';
   const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node;};
   const copy=value=>JSON.parse(JSON.stringify(value));
   const number=(v,d=3)=>!Number.isFinite(v)?'—':Math.abs(v)>=1e4||(Math.abs(v)>0&&Math.abs(v)<.001)?v.toExponential(2):v.toFixed(d);
   const colors=['#53d9d1','#ab9bff','#f7be66','#f18290','#9ad89a','#7ab6ee'];
   let diagram=B.createDefaultDiagram(),selected={kind:'node',id:'controller'},pending=null,sim=null,running=false,accumulator=0,lastFrame=null,lastDraw=0,drawDirty=true,drag=null,draftError=null;
+  const connectionGesture=new window.MechConnections.PortDragGesture();
+  let capturedPort=null,suppressPointerClick=false;
   const parameterNames={value:'Value',initial:'Initial output',final:'Final output',at:'Step time / s',amplitude:'Amplitude',frequency:'Frequency / Hz',offset:'Offset',phase:'Phase / °',signA:'Sign for input A',signB:'Sign for input B',gain:'Gain',min:'Lower limit',max:'Upper limit',kp:'Kp',ki:'Ki',kd:'Kd',tf:'Derivative filter / s',limit:'Output limit ±',tau:'Time constant / s',m:'Mass / kg',b:'Damping / N·s·m⁻¹',k:'Stiffness / N·m⁻¹',initialPosition:'Initial position / m',initialVelocity:'Initial velocity / m·s⁻¹'};
   const presetNotes={pid:'PID example: a sampled position controller drives a linear mass–spring–damper plant. The signal graph includes no hidden actuator or sensor dynamics.',thermal:'Thermal example: 50 W heater, thermal resistance 0.2 K/W, thermal capacitance 500 J/K, time constant 100 s, ambient 25 °C. Linear lumped temperature model; constant properties, no spatial heat flow or radiation.',tank:'Fluid example: constant inflow 0.001 m³/s, tank area 0.05 m², linear outflow qout = 0.001h m³/s with h in metres. Gain 1000 s/m² and time constant 50 s. No overflow, Torricelli flow, pipe-network solver, or CFD.'};
   function status(message,kind=''){const box=$('status');box.textContent=message;box.className='status'+(kind?' '+kind:'');}
@@ -16,21 +32,86 @@
   function applyDiagram(next,message){const checked=B.validateDiagram(next,{allowIncomplete:true});diagram=checked.diagram;pending=null;stopForEdit(message);$('dt').value=diagram.settings.dt;$('duration').value=diagram.settings.duration;renderDiagram();renderInspector();renderResults();}
   function commitInspector(next,message){const checked=B.validateDiagram(next,{allowIncomplete:true});diagram=checked.diagram;draftError=null;pending=null;stopForEdit(message);renderDiagram();renderResults();}
   function select(kind,id){selected={kind,id};document.querySelectorAll('.block').forEach(node=>node.classList.toggle('selected',kind==='node'&&node.dataset.id===id));renderWires();renderInspector();}
-  function setPending(value){pending=value;document.querySelectorAll('.port.output').forEach(port=>port.classList.toggle('pending',!!value&&port.dataset.node===value.node));$('connection-status').textContent=value?`Connecting ${diagram.nodes.find(n=>n.id===value.node).label} OUT. Click the destination input; Esc cancels.`:'Select a block to inspect its parameters. Drag its header to move it.';}
-  function connect(node,port,direction){if(direction==='out'){setPending(pending&&pending.node===node?null:{node,port});return;}if(!pending){status('Click an OUT port first, then this input.','warning');return;}
-    const next=copy(diagram),edge={id:unique('w',next.edges),from:{...pending},to:{node,port}};next.edges.push(edge);try{applyDiagram(next,'Wire connected. Run to evaluate the updated model.');select('wire',edge.id);}catch(error){status(error.message,'error');}}
+  function setPending(value){
+    pending=value;
+    document.querySelectorAll('.port.output').forEach(port=>port.classList.toggle('pending',!!value&&port.dataset.node===value.node));
+    document.querySelectorAll('.port.input').forEach(port=>{
+      const occupied=diagram.edges.some(edge=>edge.to.node===port.dataset.node&&edge.to.port===port.dataset.port);
+      port.classList.toggle('connect-available',!!value&&!occupied);
+      port.classList.toggle('connect-occupied',!!value&&occupied);
+      port.classList.remove('drop-target','drop-blocked');
+      port.title=occupied?'Input already connected. Select and remove its wire before replacing it.':'Input '+port.dataset.port+': drag here from OUT, or click OUT then this input.';
+    });
+    const label=value&&diagram.nodes.find(node=>node.id===value.node);
+    $('connection-status').classList.toggle('is-connecting',!!value);
+    $('connection-status').textContent=value&&label?`From ${label.label} OUT: drag/release on an input, or click the input. Teal inputs are free; outlined red inputs already have a wire. Esc cancels.`:'To connect: drag the OUT circle onto an input circle, or click OUT then click the input. Drag block headers to move blocks.';
+    if(!value)document.getElementById('connection-preview')?.remove();
+  }
+  function connect(node,port,direction){
+    if(direction==='out'){setPending(pending&&pending.node===node?null:{node,port});return false;}
+    if(!pending){status('Start from the OUT circle: drag it onto an input, or click OUT then click the input.','warning');return false;}
+    const candidate=window.MechConnections.connectionCandidate(diagram,pending,{node,port});
+    try{applyDiagram(candidate.diagram,'Wire connected. Run to evaluate the updated model.');select('wire',candidate.edge.id);return true;}catch(error){status(error.message,'error');return false;}
+  }
+  function hitInput(clientX,clientY){
+    const viewport=$('diagram-viewport').getBoundingClientRect();
+    if(clientX<viewport.left||clientX>viewport.right||clientY<viewport.top||clientY>viewport.bottom)return null;
+    const element=document.elementFromPoint(clientX,clientY),port=element&&element.closest('.port.input');
+    return port?{node:port.dataset.node,port:port.dataset.port,direction:'in',element:port}:null;
+  }
+  function renderConnectionPreview(){
+    document.getElementById('connection-preview')?.remove();
+    const state=connectionGesture.current;if(!state||!state.dragging)return;
+    const from=portPoint(state.from.node,state.from.port,'out');if(!from)return;
+    const stage=$('diagram-stage').getBoundingClientRect(),target=hitInput(state.clientX,state.clientY),to=target?portPoint(target.node,target.port,'in'):{x:state.clientX-stage.left,y:state.clientY-stage.top};
+    const occupied=target&&diagram.edges.some(edge=>edge.to.node===target.node&&edge.to.port===target.port);
+    document.querySelectorAll('.port.input').forEach(port=>port.classList.remove('drop-target','drop-blocked'));
+    if(target)target.element.classList.add(occupied?'drop-blocked':'drop-target');
+    const line=document.createElementNS(NS,'path'),reach=Math.max(50,Math.min(170,Math.abs(to.x-from.x)*.45));
+    line.id='connection-preview';line.setAttribute('class','connection-preview'+(occupied?' invalid':''));
+    line.setAttribute('d',`M ${from.x} ${from.y} C ${from.x+reach} ${from.y}, ${to.x-reach} ${to.y}, ${to.x} ${to.y}`);$('wires').append(line);
+    if(target){const label=diagram.nodes.find(node=>node.id===target.node).label;$('connection-status').textContent=occupied?`${label}.${target.port} already has a wire. Drop will be rejected; remove the existing wire first.`:`Release to connect ${diagram.nodes.find(node=>node.id===state.from.node).label} OUT → ${label}.${target.port}.`;}
+    else $('connection-status').textContent='Drag the dashed preview onto an input circle and release. Release on empty space or press Esc to cancel.';
+  }
+  function swallowGeneratedClick(){suppressPointerClick=true;} // Cleared by the next pointer press or consumed click; Esc can precede release by any duration.
+  function cleanupPortCapture(){
+    document.removeEventListener('pointermove',moveConnection,true);document.removeEventListener('pointerup',finishConnection,true);document.removeEventListener('pointercancel',cancelConnectionEvent,true);
+    const port=capturedPort;capturedPort=null;
+    if(port){port.element.removeEventListener('lostpointercapture',cancelConnectionEvent);try{if(port.element.hasPointerCapture(port.pointerId))port.element.releasePointerCapture(port.pointerId);}catch(_){} }
+    document.getElementById('connection-preview')?.remove();
+    document.querySelectorAll('.port.input').forEach(input=>input.classList.remove('drop-target','drop-blocked'));
+  }
+  function cancelConnection(message){const state=connectionGesture.cancel();cleanupPortCapture();if(state){swallowGeneratedClick();setPending(null);if(message)status(message,'warning');}}
+  function cancelConnectionEvent(event){const current=connectionGesture.current;if(current&&event.pointerId===current.pointerId)cancelConnection('Connection drag cancelled. No wire was added.');}
+  function moveConnection(event){const target=hitInput(event.clientX,event.clientY),state=connectionGesture.move(event,target&&{node:target.node,port:target.port,direction:'in'});if(!state)return;if(state.dragging){event.preventDefault();if(!pending||pending.node!==state.from.node)setPending(state.from);renderConnectionPreview();}}
+  function finishConnection(event){
+    const target=hitInput(event.clientX,event.clientY),result=connectionGesture.finish(event,target&&{node:target.node,port:target.port,direction:'in'});if(!result)return;
+    cleanupPortCapture();
+    if(result.kind==='click')return; // Native click remains available for mouse, keyboard and touch taps.
+    event.preventDefault();swallowGeneratedClick();
+    if(!result.target){setPending(null);status('Connection cancelled: release on an input circle. No wire was added.','warning');return;}
+    setPending(result.from);const connected=connect(result.target.node,result.target.port,'in');
+    if(!connected)setPending(null);
+  }
+  function beginConnection(event,port,node){
+    if(event.button!==0||event.isPrimary===false)return;
+    if(!connectionGesture.start(event,{node,port:'out'}))return;
+    capturedPort={element:port,pointerId:event.pointerId};
+    try{port.setPointerCapture(event.pointerId);}catch(_){} // Document listeners still cover a browser without capture.
+    document.addEventListener('pointermove',moveConnection,{capture:true,passive:false});document.addEventListener('pointerup',finishConnection,true);document.addEventListener('pointercancel',cancelConnectionEvent,true);port.addEventListener('lostpointercapture',cancelConnectionEvent);
+  }
   function addBlock(type,x,y){try{const next=copy(diagram),viewport=$('diagram-viewport'),node=B.createNode(type,unique('b',next.nodes),Math.max(15,Math.min(9800,x===undefined?viewport.scrollLeft+35+(next.nodes.length%4)*35:x)),Math.max(15,Math.min(9800,y===undefined?viewport.scrollTop+50+(next.nodes.length%5)*45:y)));next.nodes.push(node);selected={kind:'node',id:node.id};applyDiagram(next,`${B.library[type].label} added. Connect its required inputs before running.`);}catch(error){status(error.message,'error');}}
   function palette(){const groups=[['Sources',['constant','step','sine']],['Signal operations',['sum','gain','saturation','pid']],['States & plants',['integrator','delay','firstOrder','massSpring']],['Results',['scope']]],container=$('palette');for(const [title,types] of groups){container.append(el('div','palette-group',title));for(const type of types){const item=el('button','palette-item');item.type='button';item.draggable=true;item.dataset.type=type;item.append(el('span','', '+'),document.createTextNode(B.library[type].label));item.title=B.library[type].description+' Click or drag to add.';item.addEventListener('click',()=>addBlock(type));item.addEventListener('dragstart',event=>{event.dataTransfer.setData('application/x-mechatronics-block',type);event.dataTransfer.setData('text/plain',type);event.dataTransfer.effectAllowed='copy';});container.append(item);}}}
   function summary(node){const p=node.params;switch(node.type){case 'constant':return 'y = '+number(p.value);case 'step':return `${number(p.initial,2)} → ${number(p.final,2)} at ${number(p.at,2)} s`;case 'sine':return `A ${number(p.amplitude,2)} · ${number(p.frequency,2)} Hz`;case 'sum':return `${p.signA===1?'+':'−'} a  ${p.signB===1?'+':'−'} b`;case 'gain':return 'y = '+number(p.gain)+' × u';case 'saturation':return `${number(p.min,2)} ≤ y ≤ ${number(p.max,2)}`;case 'pid':return `P ${p.kp} · I ${p.ki} · D ${p.kd}`;case 'integrator':return 'ẋ = u · x₀ = '+p.initial;case 'delay':return 'y[k] = u[k−1]';case 'firstOrder':return `K ${p.gain} · τ ${p.tau} s`;case 'massSpring':return `m ${p.m} · b ${p.b} · k ${p.k}`;case 'scope':return 'Record input every dt';}}
-  function renderDiagram(){const container=$('nodes');container.replaceChildren();$('node-count').textContent=diagram.nodes.length+' / 50';$('wire-count').textContent=diagram.edges.length+' / 100 wires';let width=Math.max(1100,$('diagram-viewport').clientWidth),height=620;
+  function renderDiagram(){if(connectionGesture.current)cancelConnection();const container=$('nodes');container.replaceChildren();$('node-count').textContent=diagram.nodes.length+' / 50';$('wire-count').textContent=diagram.edges.length+' / 100 wires';let width=Math.max(1100,$('diagram-viewport').clientWidth),height=620;
     for(const node of diagram.nodes){width=Math.max(width,node.x+240);height=Math.max(height,node.y+230);const entry=B.library[node.type],card=el('div','block'+(entry.stateOnly?' state-block':'')+(selected&&selected.kind==='node'&&selected.id===node.id?' selected':''));card.dataset.id=node.id;card.style.left=node.x+'px';card.style.top=node.y+'px';const title=el('div','block-title');title.append(el('span','',node.label),el('small','',entry.stateOnly?'STATE':node.type==='pid'?'PID':''));title.addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();select('node',node.id);drag={id:node.id,startX:event.clientX,startY:event.clientY,x:node.x,y:node.y,moved:false};title.setPointerCapture(event.pointerId);});title.addEventListener('pointermove',event=>{if(!drag||drag.id!==node.id)return;node.x=Math.max(15,Math.min(9800,drag.x+event.clientX-drag.startX));node.y=Math.max(15,Math.min(9800,drag.y+event.clientY-drag.startY));drag.moved=drag.moved||Math.abs(event.clientX-drag.startX)+Math.abs(event.clientY-drag.startY)>3;card.style.left=node.x+'px';card.style.top=node.y+'px';renderWires();});title.addEventListener('pointerup',()=>{if(!drag||drag.id!==node.id)return;const moved=drag.moved;drag=null;if(moved){stopForEdit('Block moved. Run to restart the model with this layout.');renderDiagram();renderResults();}});title.addEventListener('pointercancel',()=>{drag=null;});card.append(title,el('div','block-type',entry.label));const area=el('div','port-area');
-      for(const portName of entry.inputs){const row=el('div','port-row'),port=el('button','port input','•');port.type='button';port.dataset.node=node.id;port.dataset.port=portName;port.dataset.direction='in';port.setAttribute('aria-label',`${node.label}: input ${portName}`);port.title='Connect to input '+portName;port.addEventListener('click',event=>{event.stopPropagation();connect(node.id,portName,'in');});row.append(port,document.createTextNode(portName));area.append(row);}
-      if(entry.outputs.length){const port=el('button','port output');port.type='button';port.dataset.node=node.id;port.dataset.port='out';port.dataset.direction='out';port.setAttribute('aria-label',`${node.label}: output`);port.title='Start a wire from OUT';port.addEventListener('click',event=>{event.stopPropagation();connect(node.id,'out','out');});area.append(port,el('span','out-label','OUT'));}card.append(area,el('div','block-summary',summary(node)));card.addEventListener('click',()=>select('node',node.id));container.append(card);
+      for(const portName of entry.inputs){const row=el('div','port-row'),port=el('button','port input','IN');port.type='button';port.dataset.node=node.id;port.dataset.port=portName;port.dataset.direction='in';port.setAttribute('aria-label',`${node.label}: input ${portName}`);port.title='Input '+portName+': drag here from OUT, or click OUT then this input.';port.addEventListener('click',event=>{event.stopPropagation();connect(node.id,portName,'in');});row.append(port,document.createTextNode(portName));area.append(row);}
+      if(entry.outputs.length){const port=el('button','port output','OUT');port.type='button';port.dataset.node=node.id;port.dataset.port='out';port.dataset.direction='out';port.setAttribute('aria-label',`${node.label}: output`);port.title='Output: drag this circle onto an input, or click it then click the input.';port.addEventListener('pointerdown',event=>beginConnection(event,port,node.id));port.addEventListener('click',event=>{event.stopPropagation();connect(node.id,'out','out');});area.append(port,el('span','out-label','output'));}card.append(area,el('div','block-summary',summary(node)));card.addEventListener('click',()=>select('node',node.id));container.append(card);
     }
     $('diagram-stage').style.width=width+'px';$('diagram-stage').style.height=height+'px';$('wires').setAttribute('viewBox',`0 0 ${width} ${height}`);setPending(pending);requestAnimationFrame(renderWires);
   }
   function portPoint(node,port,direction){const button=document.querySelector(`.port[data-node="${node}"][data-port="${port}"][data-direction="${direction}"]`);if(!button)return null;const r=button.getBoundingClientRect(),stage=$('diagram-stage').getBoundingClientRect();return {x:r.left-stage.left+r.width/2,y:r.top-stage.top+r.height/2};}
-  function renderWires(){const svg=$('wires');svg.replaceChildren();for(const edge of diagram.edges){const from=portPoint(edge.from.node,edge.from.port,'out'),to=portPoint(edge.to.node,edge.to.port,'in');if(!from||!to)continue;const reach=Math.max(50,Math.min(170,Math.abs(to.x-from.x)*.45)),d=`M ${from.x} ${from.y} C ${from.x+reach} ${from.y}, ${to.x-reach} ${to.y}, ${to.x} ${to.y}`,line=document.createElementNS(NS,'path');line.setAttribute('d',d);line.setAttribute('class','wire-line'+(selected&&selected.kind==='wire'&&selected.id===edge.id?' selected':''));svg.append(line);const hit=document.createElementNS(NS,'path');hit.setAttribute('d',d);hit.setAttribute('class','wire-hit');hit.setAttribute('role','button');hit.setAttribute('tabindex','0');hit.setAttribute('aria-label',`Wire ${edge.id}, ${edge.from.node} to ${edge.to.node} ${edge.to.port}`);hit.addEventListener('click',event=>{event.stopPropagation();select('wire',edge.id);});hit.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select('wire',edge.id);}});svg.append(hit);const arrow=document.createElementNS(NS,'path');arrow.setAttribute('d',`M ${to.x-11} ${to.y-4} L ${to.x-4} ${to.y} L ${to.x-11} ${to.y+4} Z`);arrow.setAttribute('class','wire-arrow');svg.append(arrow);}}
+  function renderWires(){const svg=$('wires');svg.replaceChildren();for(const edge of diagram.edges){const from=portPoint(edge.from.node,edge.from.port,'out'),to=portPoint(edge.to.node,edge.to.port,'in');if(!from||!to)continue;const reach=Math.max(50,Math.min(170,Math.abs(to.x-from.x)*.45)),d=`M ${from.x} ${from.y} C ${from.x+reach} ${from.y}, ${to.x-reach} ${to.y}, ${to.x} ${to.y}`,line=document.createElementNS(NS,'path');line.setAttribute('d',d);line.setAttribute('class','wire-line'+(selected&&selected.kind==='wire'&&selected.id===edge.id?' selected':''));svg.append(line);const hit=document.createElementNS(NS,'path');hit.setAttribute('d',d);hit.setAttribute('class','wire-hit');hit.setAttribute('role','button');hit.setAttribute('tabindex','0');hit.setAttribute('aria-label',`Wire ${edge.id}, ${edge.from.node} to ${edge.to.node} ${edge.to.port}`);hit.addEventListener('click',event=>{event.stopPropagation();select('wire',edge.id);});hit.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select('wire',edge.id);}});svg.append(hit);const arrow=document.createElementNS(NS,'path');arrow.setAttribute('d',`M ${to.x-11} ${to.y-4} L ${to.x-4} ${to.y} L ${to.x-11} ${to.y+4} Z`);arrow.setAttribute('class','wire-arrow');svg.append(arrow);}renderConnectionPreview();}
   function removeSelected(){if(!selected)return;const next=copy(diagram);if(selected.kind==='node'){next.nodes=next.nodes.filter(n=>n.id!==selected.id);next.edges=next.edges.filter(e=>e.from.node!==selected.id&&e.to.node!==selected.id);}else next.edges=next.edges.filter(e=>e.id!==selected.id);selected=null;applyDiagram(next,'Selection removed. Run starts a fresh simulation.');}
   function renderInspector(){if(draftError){status('Invalid parameter draft discarded; the last valid model value remains stored.','warning');draftError=null;}const box=$('inspector');box.replaceChildren();if(!selected){box.append(el('h2','','Select a block or wire'),el('p','','Choose something in the diagram to inspect its parameters and connections.'));return;}
     if(selected.kind==='wire'){const edge=diagram.edges.find(e=>e.id===selected.id);if(!edge){selected=null;renderInspector();return;}box.append(el('h2','','Signal connection'),el('div','wire-detail',`${edge.from.node}.out → ${edge.to.node}.${edge.to.port}`),el('p','','This wire carries one scalar signal. It does not infer units or represent an acausal mechanical/electrical connection.'));const remove=el('button','danger','Remove wire');remove.addEventListener('click',removeSelected);box.append(remove);return;}
@@ -65,10 +146,15 @@
   $('export-csv').addEventListener('click',()=>{if(!sim){status('Run or reset a valid model before exporting scope samples.','warning');return;}const scopes=sim.diagram.nodes.filter(n=>n.type==='scope'),csv=value=>'"'+String(value).replace(/"/g,'""')+'"',lines=['# Mechatronics block solver; illustrative simulation; no hardware validation','# Scalar units are defined by the model author; see scope labels.','# Model settings: '+JSON.stringify(sim.diagram.settings),['time [s]',...scopes.map(n=>n.label+' ('+n.id+')')].map(csv).join(',')];sim.history.forEach(row=>lines.push([row.t,...scopes.map(n=>row.scopes[n.id])].join(',')));download('mechatronics-block-scopes.csv',lines.join('\n'),'text/csv');});
   const viewport=$('diagram-viewport'),stage=$('diagram-stage');viewport.addEventListener('dragover',event=>{event.preventDefault();event.dataTransfer.dropEffect='copy';stage.classList.add('drop-active');});viewport.addEventListener('dragleave',()=>stage.classList.remove('drop-active'));viewport.addEventListener('drop',event=>{event.preventDefault();stage.classList.remove('drop-active');const type=event.dataTransfer.getData('application/x-mechatronics-block')||event.dataTransfer.getData('text/plain');if(!Object.prototype.hasOwnProperty.call(B.library,type)){status('Only block-library items can be dropped here.','warning');return;}const rect=stage.getBoundingClientRect();addBlock(type,event.clientX-rect.left-75,event.clientY-rect.top-20);});
   viewport.addEventListener('click',event=>{if(event.target===stage||event.target===$('wires')||event.target===$('nodes')){selected=null;renderInspector();document.querySelectorAll('.block').forEach(n=>n.classList.remove('selected'));renderWires();}});
-  document.addEventListener('keydown',event=>{if(event.key==='Escape'){setPending(null);return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;if((event.key==='Delete'||event.key==='Backspace')&&selected){event.preventDefault();removeSelected();}});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)pause('Paused because the browser tab is hidden.');lastFrame=null;accumulator=0;});window.addEventListener('resize',()=>{renderWires();drawResults();});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'){cancelConnection('Connection cancelled.');setPending(null);return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;if((event.key==='Delete'||event.key==='Backspace')&&selected){event.preventDefault();removeSelected();}});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelConnection();setPending(null);pause('Paused because the browser tab is hidden.');}lastFrame=null;accumulator=0;});window.addEventListener('resize',()=>{renderWires();drawResults();});
   function frame(now){const elapsed=lastFrame===null?0:Math.min(.1,(now-lastFrame)/1000);lastFrame=now;if(running&&sim){accumulator=Math.min(.5,accumulator+elapsed*Number($('speed').value));const started=performance.now();let steps=0;try{while(accumulator+1e-12>=diagram.settings.dt&&steps<100){if(!sim.step()){pause('Run complete at '+number(sim.time,3)+' s. Solver results are ready to export.');drawDirty=true;break;}accumulator-=diagram.settings.dt;steps++;drawDirty=true;if(performance.now()-started>10)break;}}catch(error){pause();status(error.message,'error');drawDirty=true;}}if(drawDirty&&now-lastDraw>50){drawResults();lastDraw=now;}requestAnimationFrame(frame);}
   // Read-only snapshots support reproducible inspection without exposing mutable editor state.
   window.MechBuilder={getDiagram:()=>copy(diagram),getRun:()=>sim?{time:sim.time,sampleCount:sim.history.length,error:sim.error,last:copy(sim.history[sim.history.length-1])}:null};
+  document.addEventListener('pointerdown',()=>{suppressPointerClick=false;},true);
+  document.addEventListener('click',event=>{if(suppressPointerClick&&event.detail!==0){suppressPointerClick=false;event.preventDefault();event.stopImmediatePropagation();}},true);
+  $('diagram-viewport').addEventListener('scroll',renderConnectionPreview);
+  window.addEventListener('blur',()=>cancelConnection('Connection cancelled because the window lost focus.'));
+  const connectionHint=document.querySelectorAll('.diagram-help span')[1];if(connectionHint)connectionHint.textContent='② Drag OUT → input, or click both';
   palette();renderDiagram();renderInspector();renderResults();requestAnimationFrame(frame);
 }());

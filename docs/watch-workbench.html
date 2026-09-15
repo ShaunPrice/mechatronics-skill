@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mechatronics workbench — recorded walkthrough</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0c121b;--panel:#152130;--line:#304257;--text:#e5edf7;--muted:#afbed1;--teal:#64ded4}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1120px;margin:auto;padding:34px 24px 50px}a{color:var(--teal);text-underline-offset:3px}a:focus-visible,video:focus-visible,summary:focus-visible{outline:3px solid var(--teal);outline-offset:4px}.eyebrow{font-size:11px;font-weight:650;letter-spacing:2px;color:var(--muted)}h1{font-size:clamp(27px,4vw,43px);line-height:1.2;letter-spacing:-.8px;margin:10px 0 15px}h2{font-size:21px;line-height:1.3;margin:0 0 12px}p{margin:9px 0 16px}.lede{max-width:850px;color:var(--muted)}.player{margin:25px 0;background:#050a10;border:1px solid var(--line);border-radius:10px;overflow:hidden}video{display:block;width:100%;max-height:75vh;background:#050a10}figcaption{padding:15px 18px;background:var(--panel);font-size:13px;color:var(--muted)}.links{display:flex;flex-wrap:wrap;gap:10px 24px;margin:18px 0 24px;font-size:14px}.notice{padding:12px 16px;background:#342b1d;border-left:3px solid #e6b86e;color:#f0d3a5;border-radius:4px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:28px}.card{background:var(--panel);border:1px solid var(--line);padding:22px;border-radius:9px}.card p,.card li{color:var(--muted);font-size:14px}.card ul,.card ol{padding-left:21px}.card li{margin-bottom:9px}.card li strong{color:var(--text)}details{margin-top:24px;border:1px solid var(--line);border-radius:8px;padding:15px 18px}summary{cursor:pointer;font-weight:650}code{font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}pre{overflow:auto;white-space:pre;background:#08111d;padding:13px;border-radius:5px}footer{border-top:1px solid var(--line);padding-top:18px;margin-top:30px;color:var(--muted);font-size:12px}@media(max-width:650px){main{padding:23px 14px 35px}.grid{grid-template-columns:1fr}.card{padding:18px}figcaption{padding:12px}.links{gap:9px 18px}.lede{font-size:14px}}
+  </style>
+</head>
+<body>
+<main>
+  <span class="eyebrow">MECHATRONICS ENGINEERING · RECORDED BROWSER WALKTHROUGH</span>
+  <h1>See the model, controls and response together.</h1>
+  <p class="lede">A silent screen recording made from real browser captures, with cuts between scenes. Use the player controls to pause, seek, show captions or enter full screen. This demonstrates software simulation; it is not footage of physical hardware.</p>
+  <figure class="player">
+    <video id="workbench-video" controls playsinline preload="metadata" poster="media/workbench-dynamics.jpg" aria-label="Recorded demonstration of the mechatronics browser workbench" aria-describedby="video-description">
+      <source src="media/browser-workbench-demo.mp4" type="video/mp4">
+      <track id="description-track" kind="captions" src="media/browser-workbench-demo.vtt" srclang="en" label="English visual descriptions" default>
+      Your browser could not display this video. <a href="media/browser-workbench-demo.mp4">Download the MP4 recording</a> or <a href="WALKTHROUGH.md">read the illustrated walkthrough</a>.
+    </video>
+    <figcaption id="video-description">Real browser views of the editable axis model, continuous-control analysis, 3D kinematic arm and signal-flow builder. There is no audio. Captions describe the visible sections; simulated time is shown inside the application and differs from video playback time.</figcaption>
+  </figure>
+  <p id="media-status" class="notice" role="status" hidden></p>
+  <nav class="links" aria-label="Recording and help links">
+    <a href="media/browser-workbench-demo.mp4" download>Download MP4</a>
+    <a href="media/browser-workbench-demo.vtt" download>Download English captions</a>
+    <a href="WALKTHROUGH.md">Illustrated walkthrough</a>
+    <a href="BROWSER-SIMULATION.md">Browser controls and experiments</a>
+    <a href="../skills/mechatronics-engineering/assets/browser-lab/index.html">Open the interactive workbench</a>
+  </nav>
+  <div class="grid">
+    <section class="card" aria-labelledby="scenes-title">
+      <h2 id="scenes-title">What to look for</h2>
+      <ol>
+        <li><strong>Axis dynamics:</strong> physical parameters and PID settings beside a moving mechanism, position response and force command.</li>
+        <li><strong>Control analysis:</strong> root-locus poles, loop magnitude/phase, and the finite Nyquist trace around −1.</li>
+        <li><strong>Robot kinematics:</strong> joint and link controls, the spatial arm, tool coordinates and a live trajectory trace.</li>
+        <li><strong>System builder:</strong> drag an OUT circle onto an IN circle, or click OUT then IN. A dashed preview and highlighted input guide wiring. Edit parameters and inspect solver results in scopes.</li>
+      </ol>
+      <p>The <a href="WALKTHROUGH.md">written walkthrough</a> explains these controls without requiring video playback.</p>
+    </section>
+    <section class="card" aria-labelledby="limits-title">
+      <h2 id="limits-title">Keep the model boundaries visible</h2>
+      <ul>
+        <li>The axis simulation has sampled control and force limits. The root/frequency plots analyze a separate ideal continuous model.</li>
+        <li>The finite Nyquist trace does not supply a completed-contour stability proof.</li>
+        <li>The arm demonstrates geometry and forward kinematics, without torque, collision or contact dynamics.</li>
+        <li>The builder carries scalar signals. Signal units and physical assumptions remain the model author's responsibility.</li>
+      </ul>
+      <p>See the <a href="../validation/REPORT.md">validation report</a> for actual numerical, browser and native-runtime checks.</p>
+    </section>
+  </div>
+  <details>
+    <summary>Local playback and caption help</summary>
+    <p>Keep this HTML file in <code>docs/</code> with the sibling <code>media/</code> directory. GitHub may show the player source or an MP4 download instead of running this page; clone or download the files first.</p>
+    <p>If your browser restricts captions when opening a local file directly, serve only this documentation directory on loopback. From the repository root:</p>
+    <pre><code>python3 -m http.server 8766 --bind 127.0.0.1 --directory docs</code></pre>
+    <p>Then open <a href="http://127.0.0.1:8766/watch-workbench.html">http://127.0.0.1:8766/watch-workbench.html</a>. Stop the local server when finished. The page has no CDN, remote font, analytics or upload service; its video and captions are repository files.</p>
+  </details>
+  <footer>Mechatronics Engineering Skill · MIT licensed · <a href="../README.md">Repository overview</a></footer>
+</main>
+<script>
+  (function(){
+    const status=document.getElementById('media-status');
+    document.getElementById('description-track').addEventListener('error',function(){status.textContent='Captions could not be loaded. Read the illustrated walkthrough, or use the local loopback-server instructions below if your browser restricts local-file caption access.';status.hidden=false;});
+    document.getElementById('workbench-video').addEventListener('error',function(){status.textContent='The recording could not be opened. Check that docs/media/browser-workbench-demo.mp4 is present, try the direct download link, or read the illustrated walkthrough.';status.hidden=false;});
+  }());
+</script>
+</body>
+</html>

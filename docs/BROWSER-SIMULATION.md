@@ -1,5 +1,13 @@
 # Browser simulation workbench
 
+## See it before you start
+
+[Watch/download the recorded demonstration (MP4)](media/browser-workbench-demo.mp4), open the [local player](watch-workbench.html), or follow the [illustrated walkthrough](WALKTHROUGH.md). The screen recording contains real browser captures, edited scene transitions and no audio. Player captions describe the visible sections. These are views of software models, not physical test footage.
+
+![Mass–spring–damper lab showing physical and PID parameter fields, the 2D mechanism, run/reset controls and position response chart.](media/workbench-dynamics.jpg)
+
+*Start on the left with the physical plant and controller parameters; use Run/Reset above the live readouts to perform an experiment.*
+
 ## Open it
 
 Open `skills/mechatronics-engineering/assets/browser-lab/index.html` in a modern local browser. Keep its sibling CSS/JavaScript files together. There is no installation or network dependency. Alternatively run `python3 scripts/build_packages.py` and open `dist/mechatronics-browser-workbench.html`, which contains the same app in one file.
@@ -42,9 +50,21 @@ Bode shows loop gain and phase against frequency. Explain the 0 dB and −180° 
 
 Nyquist draws the same loop response in the complex plane around −1 + j0. Use the curve to understand feedback phase/gain jointly. The displayed finite-frequency trace is an educational view, not a complete Nyquist contour proof. Integral control adds an imaginary-axis pole and needs the appropriate indentation for a formal count. Continuous polynomial pole stability is separately computed; neither result certifies the sampled/saturated or physical machine.
 
+![Continuous-control analysis section showing the defined feedback loop, root-locus pole trajectories, and Bode response panels.](media/workbench-control-plots.jpg)
+
+*Hover for computed sample values. Read the loop definition, pole classification and finite-range warnings alongside the curves.*
+
+![Nyquist response showing positive and negative frequency branches, the critical point, the clockwise-positive counting convention, and a warning that the displayed trace is not a completed contour.](media/workbench-nyquist.jpg)
+
+*Critical-point zoom changes the display scale. It does not supply missing contour segments or justify an encirclement verdict.*
+
 ### 5. Explore a spatial arm
 
 Change link lengths and joint angles, orbit the camera and inspect the end-effector coordinates. Follow the animated trajectory where provided. Identify which changes alter workspace versus posture. This demonstrates forward kinematics and geometry; it does not solve payload torque, actuator speed, contact, collision or structural loading. Ask the skill to add those models when they affect your design.
+
+![Robot arm kinematics tab with joint and link controls, perspective 3D scene, tool XYZ values and position chart.](media/workbench-3d.jpg)
+
+*Drag the scene to orbit; use the zoom controls to inspect geometry. Joint motion is a kinematic demonstration, not a validated motor trajectory.*
 
 ## Generate a simulation of your own solution
 
@@ -62,7 +82,13 @@ Animation pace is a display feature; control sampling and plant integration dete
 
 Choose **Drag & drop system builder** in the lab, or open `skills/mechatronics-engineering/assets/browser-lab/builder.html`. The separately packaged `dist/mechatronics-system-builder.html` runs on its own. Keep both standalone HTML files in one folder to use their navigation links.
 
-Drag components onto the canvas (or click to add), connect output/input port buttons, edit block parameters, and run the diagram. Begin with the default PID feedback example, then add sources, sums, gains, saturation, integrators, delays, first-order/mechanical plants and scopes. Save/load model JSON for repeatable experiments. See [the builder guide](../skills/mechatronics-engineering/references/system-builder.md) for worked thermal/motor/feedback modeling techniques and tests.
+Drag components onto the canvas (or click to add). Move a block by its header. To connect signals, press an **OUT circle**, drag the dashed preview onto an **IN circle**, and release when the target highlights teal. Alternatively click OUT, release, then click IN; keyboard Tab and Enter/Space use the same buttons. Edit block parameters and run the diagram. Begin with the default PID feedback example, then add sources, sums, gains, saturation, integrators, delays, first-order/mechanical plants and scopes. Save/load model JSON for repeatable experiments. See [the builder guide](../skills/mechatronics-engineering/references/system-builder.md) for worked thermal/motor/feedback modeling techniques and tests.
+
+![Block library and a connected Constant 3 to Gain 2 to Scope diagram, with labeled IN/OUT ports, wire instructions and parameter inspector.](media/system-builder.jpg)
+
+*Drag OUT onto IN, or click OUT then IN. Teal inputs are unoccupied; red outlined inputs already have a wire. Each scope has its own vertical scale and author-defined signal units.*
+
+Release on empty space or press **Esc** to cancel a drag. To replace a connection, select its wire and choose **Remove wire** first. Scroll or rearrange blocks before dragging to an off-screen input; the canvas does not automatically scroll during a wire drag. The two-click method lets you scroll between choosing the output and input. Inspect stored parameters and choose **Check connections** before running.
 
 This is a scalar signal-flow editor inspired by the block-diagram workflow. Xcos file import, acausal physical connectors, automatic unit checking and automatic root/Bode/Nyquist analysis of arbitrary diagrams are not implemented. Derive and verify the equations behind each connection.
 
@@ -81,3 +107,13 @@ work/usd-check/bin/python scripts/validate_openusd.py
 ```
 
 The SDK is only a validation dependency. It is not bundled into the skill or required to run/export from the browser. The check parses generated scenes and compares world transforms with independent forward kinematics; it does not run an external physics engine.
+
+## Video playback and captions
+
+The [local player](watch-workbench.html) reads `docs/media/browser-workbench-demo.mp4` and its sibling [WebVTT captions](media/browser-workbench-demo.vtt). Keep the `docs/media/` folder with the player when copying files. If a browser restricts captions on a directly opened local file, serve only the documentation folder on loopback from the repository root:
+
+```sh
+python3 -m http.server 8766 --bind 127.0.0.1 --directory docs
+```
+
+Open `http://127.0.0.1:8766/watch-workbench.html`, then stop the server when finished. This optional server is only for local documentation playback; the browser workbench itself also supports direct file opening. The [walkthrough text](WALKTHROUGH.md) remains available without video or captions.

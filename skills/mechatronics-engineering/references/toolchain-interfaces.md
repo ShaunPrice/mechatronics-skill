@@ -37,13 +37,17 @@ Load the generated analysis script in Scilab. It defines the exported state-spac
 
 For continuous Scilab analysis, the exported object is the physical plant. It does not include the browser's PID, sampled hold, saturation or the rest of its diagram. Add the controller explicitly if analysing the full loop. A plant Bode plot can carry physical gain units; loop margins require a dimensionless full feedback transfer. Scilab frequency conventions must be checked: do not relabel Hz as rad/s. Document the actual `bode`, `csim` and related API conventions for the installed version.
 
-Use Scilab for matrix/control analysis, scripted design studies and numerical cross-checks. A computed stable continuous model does not certify sampled, saturated or hardware behaviour. If a Scilab runtime is unavailable, retain the generated scripts as prepared artifacts and report execution as pending.
+Use Scilab for matrix/control analysis, scripted design studies and numerical cross-checks. Set `interface_plots=%f` before running the analysis script in `scilab-cli`; GUI plots stay enabled by default. A computed stable continuous model does not certify sampled, saturated or hardware behaviour. If a Scilab runtime is unavailable, retain the generated scripts as prepared artifacts and report execution as pending.
 
-## Xcos native model configuration
+## Xcos native construction and batch simulation
 
-The Xcos setup script loads the same A/B/C/D and initial state into the Scilab workspace. Follow the generated native-block recipe to configure a continuous state-space block, reference source and scope. Enter the supplied variables in the block dialogs and use the stated final time/input conditions. Run the native diagram and compare with the exported reference.
+The generated `xcos_build.sce` loads the same A/B/C/D and initial state, then uses installed native block define functions and `scicos_link` to construct a unit-step input, CLSS plant, CLOCK_c observation clock and a TOWS_c workspace recorder. It also constructs a second diagram with CSCOPE for interactive viewing. Both diagrams are saved as Scilab `.sod` data; that is distinct from an Xcos interchange file.
 
-This workflow uses documented native Xcos blocks and workspace data. It does not claim that the browser's JSON is an Xcos `.xcos`/`.zcos` file or that all browser nodes have been converted. Save the completed native diagram from Xcos for the project record. Solver tolerances, source timing, scope timing and initial conditions must be checked in the installed Xcos version.
+Run `xcos_batch.sce` in Scilab CLI or the GUI to execute native `scicos_simulate(...,"nw")`. It writes a time/output CSV, reports the actual recorded time interval, and compares matching samples with the Python reference. An observation event exactly at final time may be omitted by the native simulation; compare actual samples rather than assuming identical row counts. The configured observation interval and solver integration steps are separate clocks.
+
+Run `xcos_setup.sce` in GUI-capable Scilab to save and reload native `selected-plant-batch.zcos` and `selected-plant-scope.zcos`, then open the scope diagram. Set `interface_open_xcos=%f` before execution to save/reload without opening an editor. Scilab's native `.zcos` serialization is disabled in `-nwni`/`scilab-cli` mode; Java-enabled `-nw` or GUI mode is needed for that step. The manual native-block recipe remains in the [adapter README](../assets/interfaces/README.md) as a learning exercise and fallback for incompatible releases.
+
+This workflow does not reinterpret browser JSON as an Xcos file or convert unsupported neighbouring blocks. Solver tolerances, source timing, observation timing and initial conditions must be checked in the installed Xcos version. Keep the generated native files with the selected model and comparison results.
 
 Expand the native model with controllers, actuator/sensor dynamics, events or suitable physical-network blocks when needed. For hybrid/acausal models, use Xcos's supported solvers and block libraries rather than inserting arbitrary delays merely to make the browser graph run. Verify unit consistency, algebraic-loop treatment and event ordering at each boundary.
 
@@ -73,3 +77,10 @@ Keep simulations in an appropriate ROS domain and avoid remapping their topics i
 6. Keep generated source, configuration, model JSON, native Xcos diagram, result CSV and test notes together under version control.
 
 Code generation, Python tests and source validation are distinct from successful Scilab execution, Xcos simulation and ROS middleware connectivity. Report only the checks actually performed. See [the project workflow](project-workflow.md) for configuration/manufacturing handoff and [OpenUSD guidance](openusd-workflow.md) for scene interchange.
+
+### Bounded runtime evidence
+
+On 2026-09-15, the installed macOS Scilab 2026.1.0 executed the exported mass-spring and first-order numerical analysis (including nonzero initial state), native Xcos construction and recorded batch simulation. Java-enabled batch mode saved/reloaded native `.zcos` diagrams. Those results establish these software paths on that release. Interactive scope rendering, ROS middleware and hardware operation require their own evidence. The optional native interface test uses an isolated profile and is explicitly skipped when Scilab is unavailable; ATOMS inventory does not install or load external modules.
+
+
+The repository also provides a [ROS 2 Docker test environment](https://github.com/ShaunPrice/mechatronics-skill/tree/main/integrations/ros2-docker). On 2026-09-15, its generated package built successfully in ROS 2 Jazzy on Linux arm64, and seven live middleware checks passed between separate processes, including command receipt, state/metadata, stale/invalid input handling and simulation-clock behavior. The container was left stopped for reuse. See that guide and its recorded evidence for exact scope, versions and start/test/stop commands; this does not establish hardware operation.

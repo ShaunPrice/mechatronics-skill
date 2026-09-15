@@ -59,8 +59,9 @@ def main():
     for p in references+[dossier,SKILL/"assets/interfaces/README.md"]:
         knowledge.append(f"\n---\n\n## Source: {p.relative_to(SKILL)}\n\n"+knowledge_links(text(p)))
     (integration/"Mechatronics-knowledge.md").write_text("\n".join(knowledge),encoding="utf-8")
-    py=["Mechatronics Python examples — MIT licensed. Python 3.9+ standard library for numerical examples. The interface exporter also uses the standard library; generated ROS adapters require their ROS environment. Extract files into the shown paths under one skill folder; this combined text is not executable.\n"]
-    for p in sorted((SKILL/"scripts").glob("*.py"))+sorted((SKILL/"assets/interfaces").glob("*.py")):
+    py=["Mechatronics Python examples and interface companion files — MIT licensed. Python 3.9+ standard library for numerical examples. The interface exporter also uses the standard library; generated ROS adapters require their ROS environment. Extract every required file into the shown paths under one skill folder, including the Scilab templates and example diagram; this combined text is not executable.\n"]
+    interface_files=sorted(p for p in (SKILL/"assets/interfaces").iterdir() if p.is_file() and p.suffix in (".py", ".sce", ".json"))
+    for p in sorted((SKILL/"scripts").glob("*.py"))+interface_files:
         py.append(f"\n=== FILE: {p.relative_to(SKILL).as_posix()} ===\n{text(p)}")
     (integration/"Python-examples.txt").write_text("\n".join(py),encoding="utf-8")
     browser=standalone_browser()
@@ -68,6 +69,8 @@ def main():
     (integration/"Browser-simulator-template.txt").write_text("Mechatronics Browser Workbench — MIT licensed. The source below is a complete standalone HTML application. Save the content beginning with <!doctype html> (case insensitive) as an .html file. Adapt equations and geometry to the user's problem; preserve evidence labels.\n\n"+browser,encoding="utf-8")
     builder=standalone_browser("builder.html")
     (dist/"mechatronics-system-builder.html").write_text(builder,encoding="utf-8")
+    for name in ("browser-workbench-demo.mp4", "browser-workbench-demo.vtt"):
+        (dist/name).write_bytes((ROOT/"docs/media"/name).read_bytes())
     (integration/"System-builder-template.txt").write_text("Mechatronics System Builder — MIT licensed. Save the source from <!doctype html> onward as mechatronics-system-builder.html. This is a scalar signal-flow simulator with a visual editor, not Xcos file compatibility or an acausal physical-network solver.\n\n"+builder,encoding="utf-8")
     zip_path=dist/f"{NAME}-{VERSION}.zip"
     with zipfile.ZipFile(zip_path,"w",zipfile.ZIP_DEFLATED) as z:

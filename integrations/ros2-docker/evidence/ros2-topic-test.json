@@ -1,0 +1,171 @@
+{
+  "schema": "mechatronics-ros2-runtime-validation/v1",
+  "status": "passed",
+  "evidence": "Actual ROS 2 topics and generated numerical plant inside a Docker container; no hardware, external robot, or hard-real-time validation",
+  "process_model": "Probe and generated simulator are separate processes using ROS middleware",
+  "checks": {
+    "metadata_and_state_received": {
+      "input_topic": "/mechatronics_sim/force_n",
+      "input_unit": "N",
+      "output_unit": "m",
+      "state_order": [
+        "position",
+        "velocity"
+      ],
+      "watchdog_s": 0.5,
+      "dt_s": 0.01
+    },
+    "one_newton_moves_positive": {
+      "samples_with_1N": 150,
+      "maximum_position_m": 0.28108869211175364
+    },
+    "publisher_stop_watchdog": {
+      "zero_seen_after_last_publish_wall_s": 0.507673375075683,
+      "zero_seen_after_publish_loop_stop_wall_s": 0.44750049989670515,
+      "sample": {
+        "simulation_time_s": 2.95,
+        "step_index": 295,
+        "state": [
+          0.2893333519804656,
+          -0.029098587002855447
+        ],
+        "output": 0.2893333519804656,
+        "applied_input": 0.0,
+        "input_stale": true,
+        "completed": false,
+        "dt_s": 0.01,
+        "state_order": [
+          "position",
+          "velocity"
+        ],
+        "state_units": [
+          "m",
+          "m/s"
+        ],
+        "input_unit": "N",
+        "output_unit": "m",
+        "boundary": "selected plant simulation only; no controller or hardware bridge"
+      }
+    },
+    "nonfinite_command_clears_input": {
+      "invalid_command": "NaN",
+      "zero_observed_latency_wall_s": 0.0093320831656456,
+      "bounded_before_watchdog_s": 0.35,
+      "applied_input": 0.0
+    },
+    "out_of_envelope_command_clears_input": {
+      "invalid_command": 1001.0,
+      "zero_observed_latency_wall_s": 0.008291875012218952,
+      "bounded_before_watchdog_s": 0.35,
+      "applied_input": 0.0
+    },
+    "simulation_clock_separate_from_wall": {
+      "received_wall_gap_s": 0.7844747919589281,
+      "simulation_gap_s": 0.010000000000000231,
+      "dt_s": 0.01,
+      "resume_applied_input": 0.0,
+      "note": "The numerical clock advanced by fixed callbacks; middleware scheduling and hard real-time behavior are not guaranteed."
+    },
+    "integer_sample_timestamps": {
+      "received_states_checked": 381
+    }
+  },
+  "environment": {
+    "ROS_DISTRO": "jazzy",
+    "ROS_DOMAIN_ID": "73",
+    "ROS_LOCALHOST_ONLY": "1",
+    "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp"
+  },
+  "configuration": {
+    "schema": "mechatronics-selected-plant/v1",
+    "plant_id": "plant",
+    "plant_type": "massSpring",
+    "parameters": {
+      "m": 1.0,
+      "b": 2.0,
+      "k": 4.0,
+      "initialPosition": 0.0,
+      "initialVelocity": 0.0
+    },
+    "A": [
+      [
+        0.0,
+        1.0
+      ],
+      [
+        -4.0,
+        -2.0
+      ]
+    ],
+    "B": [
+      [
+        0.0
+      ],
+      [
+        1.0
+      ]
+    ],
+    "C": [
+      [
+        1.0,
+        0.0
+      ]
+    ],
+    "D": [
+      [
+        0.0
+      ]
+    ],
+    "x0": [
+      0.0,
+      0.0
+    ],
+    "state_order": [
+      "position",
+      "velocity"
+    ],
+    "state_units": [
+      "m",
+      "m/s"
+    ],
+    "input_unit": "N",
+    "output_unit": "m",
+    "dt_s": 0.01,
+    "requested_duration_s": 20.0,
+    "watchdog_s": 0.5,
+    "input_limit": 1000.0,
+    "comparison_input": 1.0,
+    "boundary": "selected continuous plant only; original wiring/controllers/sources are excluded",
+    "unit_note": "firstOrder units require user declaration; labels do not enforce dimensions",
+    "evidence": "exported analytical model; external runtime and hardware execution not established",
+    "effective_duration_s": 20.0,
+    "substeps_per_tick": 1
+  },
+  "elapsed_wall_s": 5.072297126986086,
+  "received_state_count": 381,
+  "received_metadata_count": 3,
+  "last_received_state": {
+    "simulation_time_s": 3.89,
+    "step_index": 389,
+    "state": [
+      0.2074359287463554,
+      -0.043059020595047987
+    ],
+    "output": 0.2074359287463554,
+    "applied_input": 0.0,
+    "input_stale": true,
+    "completed": false,
+    "dt_s": 0.01,
+    "state_order": [
+      "position",
+      "velocity"
+    ],
+    "state_units": [
+      "m",
+      "m/s"
+    ],
+    "input_unit": "N",
+    "output_unit": "m",
+    "boundary": "selected plant simulation only; no controller or hardware bridge"
+  }
+}

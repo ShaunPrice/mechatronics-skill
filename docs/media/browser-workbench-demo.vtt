@@ -1,0 +1,19 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:14.056
+Run the sampled PID axis; change mass from 1 to 2 kg and target from 1 to 0.5 m.
+
+00:00:14.056 --> 00:00:23.176
+Inspect continuous-time root locus, Bode and Nyquist views; toggle Nyquist zoom.
+
+00:00:23.176 --> 00:00:34.297
+Run the kinematic arm demonstration; zoom and watch tool coordinates.
+
+00:00:34.297 --> 00:00:38.381
+Start an empty diagram. Drag a Constant block from the library onto the canvas.
+
+00:00:38.381 --> 00:00:47.502
+Prepared model: Constant 3, Gain 2, Scope. Drag each OUT circle onto the next IN circle.
+
+00:00:47.502 --> 00:00:54.605
+Run the connected model. The live scope confirms 3 times 2 equals 6.

@@ -262,24 +262,38 @@ output_error = max(abs(y' - reference(:, 3)));
 state_error = max(abs(x' - reference(:, 4:$)));
 mprintf("Maximum output difference versus Python RK4: %.9g\\n", output_error);
 mprintf("Maximum state difference versus Python RK4: %.9g\\n", state_error);
+// Set interface_plots=%f before exec() for terminal-only numerical validation.
+// GUI plots remain the default when this variable is not supplied.
+if exists("interface_plots") == 0 then interface_plots = %t; end
 // These differences require interpretation with units and a dt-convergence check.
-scf(); plot(t, y); xtitle("Selected plant: unit-input response", "Time / s", "Output / declared unit");
-// Frequency arguments are Hz. This is plant response, not closed-loop margins.
-if norm(B) > 0 then
-    scf(); bode(plant, 1d-3, 1d3);
-else
-    mprintf("B=0: input has no effect; skipped logarithmic zero-gain Bode plot.\\n");
+if interface_plots then
+    scf(); plot(t, y); xtitle("Selected plant: unit-input response", "Time / s", "Output / declared unit");
+    // Frequency arguments are Hz. This is plant response, not closed-loop margins.
+    if norm(B) > 0 then
+        scf(); bode(plant, 1d-3, 1d3);
+    else
+        mprintf("B=0: input has no effect; skipped logarithmic zero-gain Bode plot.\\n");
+    end
 end
 '''
     (out / "scilab_analysis.sce").write_text(analysis, encoding="utf-8")
-    xcos_setup = '''// Documented GUI construction workflow, not a generated native diagram.
+    xcos_setup = '''// Construct and save native Xcos diagrams using the installed runtime.
+// Requires GUI-capable Scilab or -nw; .zcos serialization is disabled in -nwni.
 export_dir = get_absolute_file_path("xcos_setup.sce");
-exec(export_dir + "plant_data.sce", -1);
-disp("Use the Xcos steps in README.md: STEP_FUNCTION -> CLSS -> CSCOPE; CLOCK_c -> scope event port.");
-disp("Copy plant_data.sce numeric assignments into diagram context for a portable saved diagram.");
-xcos();
+exec(export_dir + "xcos_build.sce", -1);
+xcosDiagramToScilab(export_dir + "selected-plant-batch.zcos", selected_plant_diagram);
+xcosDiagramToScilab(export_dir + "selected-plant-scope.zcos", selected_plant_scope_diagram);
+// Re-read both files to check native serialization before opening the editor.
+selected_plant_diagram = xcosDiagramToScilab(export_dir + "selected-plant-batch.zcos");
+selected_plant_scope_diagram = xcosDiagramToScilab(export_dir + "selected-plant-scope.zcos");
+mprintf("Saved and reloaded native Xcos recording and scope diagrams.\\n");
+// Set interface_open_xcos=%f before exec() to save/load without opening a window.
+if exists("interface_open_xcos") == 0 then interface_open_xcos = %t; end
+if interface_open_xcos then xcos(selected_plant_scope_diagram); end
 '''
     (out / "xcos_setup.sce").write_text(xcos_setup, encoding="utf-8")
+    for name in ("xcos_build.sce", "xcos_batch.sce"):
+        shutil.copyfile(ASSETS / name, out / name)
     atoms_setup = '''// Local inspection only. Core Scilab/Xcos functions need no extra ATOMS module here.
 installed_modules = atomsGetInstalled();
 disp(installed_modules);
@@ -327,7 +341,7 @@ setup(name="mechatronics_sim", version="0.1.0", packages=["mechatronics_sim"],
 </package>
 ''', encoding="utf-8")
     return {"output_directory": str(out.resolve()), "plant_id": config["plant_id"],
-            "reference_rows": len(rows), "xcos_mode": "documented GUI setup; no native diagram generated",
+            "reference_rows": len(rows), "xcos_mode": "native construction and batch scripts; run Scilab to create .zcos files",
             "evidence": "files generated and Python reference computed; external runtime execution not established"}
 
 

@@ -5,9 +5,11 @@ import csv
 import importlib.util
 import json
 import math
+import os
 from pathlib import Path
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 import unittest
@@ -15,6 +17,10 @@ import xml.etree.ElementTree as ET
 
 from export_interfaces import (ASSETS, BLOCKS, ROOT, PlantSimulator, export_bundle,
                                load_diagram, sample_count, select_plant, validate_diagram)
+
+_mac_scilab = Path("/Applications/scilab-2026.1.0.app/Contents/bin/scilab-cli")
+NATIVE_SCILAB = (os.environ.get("SCILAB_CLI") or shutil.which("scilab-cli") or
+                (str(_mac_scilab) if _mac_scilab.is_file() else None))
 
 
 def example(kind="massSpring", params=None):
@@ -195,7 +201,10 @@ class ExportTests(unittest.TestCase):
             self.assertIn("csim(mech_unit_input, t, plant, x0", analysis)
             self.assertIn("bode(plant", analysis)
             self.assertIn("reference(:, 4:$)", analysis)
-            self.assertIn("xcos();", (out / "xcos_setup.sce").read_text())
+            self.assertIn("xcos(selected_plant_scope_diagram)", (out / "xcos_setup.sce").read_text())
+            self.assertIn("xcosDiagramToScilab", (out / "xcos_setup.sce").read_text())
+            self.assertIn("scicos_simulate", (out / "xcos_batch.sce").read_text())
+            self.assertIn('CLSS("define")', (out / "xcos_build.sce").read_text())
             self.assertFalse(list(out.glob("*.zcos")))
             atoms = [line for line in (out / "atoms_setup.sce").read_text().splitlines() if not line.lstrip().startswith("//")]
             self.assertNotIn("atomsInstall", "\n".join(atoms))
@@ -227,6 +236,64 @@ class ExportTests(unittest.TestCase):
             report = json.loads(process.stdout)
             self.assertEqual(report["plant_id"], "plant")
             self.assertEqual(report["reference_rows"], 101)
+
+    @unittest.skipUnless(NATIVE_SCILAB, "optional native Scilab CLI check; runtime is not installed")
+    def test_native_scilab_and_xcos_batch(self):
+        """Run actual installed Scilab and native Xcos simulation, without Java UI."""
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            profile = directory / "scilab-profile"
+            profile.mkdir()
+            exports = []
+            statements = ["try", "interface_plots=%f;"]
+            for name, diagram in (("mass", example()),
+                                  ("first", example("firstOrder", {"gain": 2, "tau": .5, "initial": 3}))):
+                out = directory / name
+                export_bundle(select_plant(diagram, "plant"), out)
+                exports.append(out)
+                statements += [f'exec("{out}/scilab_analysis.sce",-1);',
+                               f'exec("{out}/xcos_batch.sce",-1);']
+            statements += [f'exec("{exports[0]}/atoms_setup.sce",-1);',
+                           'mprintf("NATIVE_INTERFACE_TEST_COMPLETE\\n");',
+                           "catch", 'mprintf("NATIVE_ERROR: %s\\n",lasterror());',
+                           "exit(1);", "end", "exit(0);"]
+            script = directory / "native-test.sce"
+            script.write_text("\n".join(statements)+"\n")
+            command = [NATIVE_SCILAB, "-nb", "-nouserstartup", "-noatomsautoload", "-scihome", str(profile),
+                       "-f", str(script), "-quit"]
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                       text=True, start_new_session=True)
+            try:
+                output, _ = process.communicate(timeout=35)
+            except subprocess.TimeoutExpired:
+                if os.name == "posix":
+                    os.killpg(process.pid, signal.SIGTERM)
+                else:
+                    process.terminate()
+                try:
+                    output, _ = process.communicate(timeout=3)
+                except subprocess.TimeoutExpired:
+                    if os.name == "posix":
+                        os.killpg(process.pid, signal.SIGKILL)
+                    else:
+                        process.kill()
+                    output, _ = process.communicate()
+                self.fail("native Scilab exceeded bounded runtime: " + output)
+            self.assertEqual(process.returncode, 0, output)
+            self.assertIn("NATIVE_INTERFACE_TEST_COMPLETE", output)
+            for out in exports:
+                def read(name):
+                    with (out/name).open(encoding="utf-8") as stream:
+                        return [[float(v) for v in row] for row in csv.reader(stream)]
+                reference = read("reference.csv")
+                scilab = read("scilab_response.csv")
+                native = read("xcos_response.csv")
+                self.assertEqual(len(reference), len(scilab))
+                self.assertLess(max(abs(a-b) for rr, ss in zip(reference, scilab) for a, b in zip(rr, ss)), 1e-6)
+                by_time = {round(row[0], 9): row[2] for row in reference}
+                self.assertGreater(len(native), 1)
+                self.assertLess(max(abs(row[1]-by_time[round(row[0], 9)]) for row in native), 1e-5)
+                self.assertTrue((out / "selected-plant.sod").is_file())
 
 
 if __name__ == "__main__":

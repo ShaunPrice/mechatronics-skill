@@ -22,6 +22,8 @@ jobs:
         run: node skills/mechatronics-engineering/scripts/test-browser-lab.cjs
       - name: Block-diagram solver
         run: node skills/mechatronics-engineering/scripts/test-block-engine.cjs
+      - name: Connector gestures and graph updates
+        run: node skills/mechatronics-engineering/scripts/test-builder-connections.cjs
       - name: OpenUSD integration
         run: |
           python -m pip install usd-core==26.8

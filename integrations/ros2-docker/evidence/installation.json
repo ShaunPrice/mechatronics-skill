@@ -1,0 +1,91 @@
+{
+  "schema": "mechatronics-ros2-docker-installation/v1",
+  "recorded_at_utc": "2026-09-15T11:42:38.577995+00:00",
+  "status": "installed_and_stopped",
+  "host_runtime": {
+    "docker_desktop": "4.87.0 (236836)",
+    "docker_client": "29.7.2",
+    "docker_engine": "29.7.2",
+    "container_platform": "linux/arm64"
+  },
+  "official_image": {
+    "tag": "ros:jazzy-ros-base",
+    "pulled_digest": "sha256:386d06ec6d4188f731bae5678e07b4cb64a4e4d4152090c0bd1f881dcf7706f5"
+  },
+  "derived_image": {
+    "tag": "mechatronics-ros2-test:jazzy",
+    "reported_image_id": "sha256:844e2cae3575758846fc0202af455773665e221cdde4272ab07b0ca85261f4bb",
+    "platform_manifest_digest": "sha256:aed4215db5097d7e1b47e73a14bce763d69b3771f325677f0a2db8d508e941f8"
+  },
+  "container": {
+    "name": "mechatronics-ros2-test",
+    "id": "32e404c63f92be22c833fef43c523c59ee8bf8879c4651a2fb02a0abbf0276bf",
+    "state": "exited",
+    "running": false,
+    "exit_code": 143,
+    "exit_reason": "Intentional docker stop sent SIGTERM to idle sleep process after successful tests",
+    "finished_at_utc": "2026-09-15T11:40:18.44789363Z",
+    "auto_remove": false,
+    "workspace": "/workspace/ros2_ws",
+    "test_script": "/workspace/test_ros_topics.py",
+    "runtime_reports": "/workspace/evidence"
+  },
+  "isolation": {
+    "network_mode": "none",
+    "published_ports": {},
+    "mounts": [],
+    "devices": [],
+    "privileged": false,
+    "capabilities_dropped": [
+      "ALL"
+    ],
+    "security_options": [
+      "no-new-privileges:true"
+    ],
+    "ipc": "private",
+    "pids_limit": 128,
+    "memory_bytes": 1073741824,
+    "cpu_cores": 2,
+    "docker_socket_mounted": false
+  },
+  "packages": {
+    "python3": "3.12.3-0ubuntu2.1",
+    "python3-colcon-common-extensions": "0.3.0-100",
+    "python3-colcon-core": "0.21.1+upstream-1",
+    "python3-setuptools": "68.1.2-2ubuntu1.2",
+    "ros-jazzy-rclpy": "7.1.11-1noble.20260612.095634",
+    "ros-jazzy-rmw-fastrtps-cpp": "8.4.4-1noble.20260612.092346",
+    "ros-jazzy-ros-base": "0.11.0-1noble.20260614.091815"
+  },
+  "build": {
+    "command": "source /opt/ros/jazzy/setup.bash && cd /workspace/ros2_ws && colcon build --packages-select mechatronics_sim --event-handlers console_direct+",
+    "package": "mechatronics_sim",
+    "status": "passed",
+    "packages_finished": 1,
+    "reported_total_seconds": 0.62,
+    "log": "colcon-build.log"
+  },
+  "runtime_test": {
+    "status": "passed",
+    "checks_passed": 7,
+    "report": "ros2-topic-test.json",
+    "simulator_log": "plant-simulator.log",
+    "scope": "Separate ROS processes and actual middleware exchange for the selected numerical plant; no hardware or hard-real-time validation"
+  },
+  "notes": [
+    "Initial copied-directory ownership prevented colcon from writing its log. A container-owned source copy corrected this without relaxing isolation or changing host permissions.",
+    "ROS_LOCALHOST_ONLY is deprecated in the installed Jazzy build but explicitly honored; network=none isolation was independently verified.",
+    "Pinned base image; apt package resolution on future rebuilds may change.",
+    "The bounded live test ended after its checks at simulation t=3.89s, before the configured 20s duration."
+  ],
+  "source_sha256": {
+    "skills/mechatronics-engineering/assets/interfaces/ros_node.py": "dad44a7c0fc124516457d1ee67a03e921a36b4bd320016e1a6ada3b7c8ad47ff",
+    "skills/mechatronics-engineering/assets/interfaces/sim_core.py": "79b6f9c1e6426d15ebac62ea7a4fbddbc37eb0a2d1cfd61dd29ecf80b3179c5c",
+    "skills/mechatronics-engineering/scripts/export_interfaces.py": "f6807e6cbebfa631128a78f79b09f95a0cf773f49d9e06bb0b819d7b747810c3",
+    "skills/mechatronics-engineering/assets/interfaces/example-diagram.json": "bd8bbfd09834fe236378ee8f932efd98db87aebe1a99d7fb86a0a9c8d2100e6b",
+    "integrations/ros2-docker/Dockerfile": "43168f094dffe28c703444a5f3284941a59ede00295eee74f23914d3ec4d4b19",
+    "integrations/ros2-docker/test_ros_topics.py": "0cc60ce5fdbd0a92eee83c4cf0744329ce56a944b01bc3266a6ca87532287e71"
+  },
+  "generated_node_matches_current_source": true,
+  "generated_core_matches_current_source": true
+}

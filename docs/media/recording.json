@@ -1,0 +1,97 @@
+{
+  "schema": "mechatronics-browser-recording/v1",
+  "method": "Actual screenshots of the running in-app browser at a target of 8 frames/s. Actual capture intervals retained; edited cuts remove preparation gaps. No generated frames or audio.",
+  "capture_width": 1185,
+  "capture_height": 782,
+  "encoding_padding": "One black pixel column added for even-width H.264 encoding.",
+  "captured_frames": 418,
+  "timeline_duration_s": 54.605,
+  "average_capture_fps": 7.655,
+  "sections": [
+    {
+      "name": "01-dynamics",
+      "title": "Run the sampled PID axis; change mass from 1 to 2 kg and target from 1 to 0.5 m.",
+      "start_s": 0.0,
+      "end_s": 14.056,
+      "captured_frames": 107,
+      "capture_started_utc": "2026-09-15T11:48:37.451Z"
+    },
+    {
+      "name": "02-control-plots",
+      "title": "Inspect continuous-time root locus, Bode and Nyquist views; toggle Nyquist zoom.",
+      "start_s": 14.056,
+      "end_s": 23.176,
+      "captured_frames": 70,
+      "capture_started_utc": "2026-09-15T11:49:53.344Z"
+    },
+    {
+      "name": "03-robot-3d",
+      "title": "Run the kinematic arm demonstration; zoom and watch tool coordinates.",
+      "start_s": 23.176,
+      "end_s": 34.297,
+      "captured_frames": 84,
+      "capture_started_utc": "2026-09-15T11:50:26.829Z"
+    },
+    {
+      "name": "09-builder-block-drag",
+      "title": "Start an empty diagram. Drag a Constant block from the library onto the canvas.",
+      "start_s": 34.297,
+      "end_s": 38.381,
+      "captured_frames": 32,
+      "capture_started_utc": "2026-09-15T12:06:22.672Z"
+    },
+    {
+      "name": "10-builder-port-drag",
+      "title": "Prepared model: Constant 3, Gain 2, Scope. Drag each OUT circle onto the next IN circle.",
+      "start_s": 38.381,
+      "end_s": 47.502,
+      "captured_frames": 71,
+      "capture_started_utc": "2026-09-15T12:07:40.733Z"
+    },
+    {
+      "name": "11-builder-live-scope",
+      "title": "Run the connected model. The live scope confirms 3 times 2 equals 6.",
+      "start_s": 47.502,
+      "end_s": 54.605,
+      "captured_frames": 54,
+      "capture_started_utc": "2026-09-15T12:08:38.795Z"
+    }
+  ],
+  "encoded_media": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "index": 0,
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 1186,
+        "height": 782,
+        "avg_frame_rate": "10475/1367",
+        "nb_frames": "419"
+      },
+      {
+        "index": 1,
+        "codec_name": "mov_text",
+        "codec_type": "subtitle",
+        "avg_frame_rate": "0/0",
+        "nb_frames": "7"
+      }
+    ],
+    "format": {
+      "duration": "54.640000",
+      "size": "1602543"
+    }
+  },
+  "scope": "Recorded software behavior, not hardware validation.",
+  "assets": {
+    "browser-workbench-demo.mp4": "088ba487340dc562dbb344c0d129200236c8bfff45539909e776d56bbe387273",
+    "browser-workbench-demo.vtt": "b013a697af05927290a7e82e13a590796ac0ff4357101f5f101314d6ca6a8abc",
+    "system-builder-scope.jpg": "775995c6c302ce5dd6b4004e12310b4b67c3b52bdf41d146a8e551b6efbcad3a",
+    "system-builder.jpg": "e416819df55b4a914aa8df2adca1f9549bd95137a6d516731149107242475994",
+    "workbench-3d.jpg": "a08bdda066ce1bccb4e0662077ac423eb171d0c6e01e15c6f47e39d5c2d5bf45",
+    "workbench-control-plots.jpg": "91c897bd2bdb1629a7869f3ffd33cce2c7e4817451a7d3be5f06753cc80c343e",
+    "workbench-dynamics.jpg": "e678df68ff4978ad901d6480209d6d9b7517ecf09d8cbaf5a781e8ae80f23e04",
+    "workbench-nyquist.jpg": "d8d6428e0677e8061aba1163514980d3f72fade2b23daed9a584b8a6b177c58c"
+  }
+}

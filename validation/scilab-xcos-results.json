@@ -1,0 +1,211 @@
+{
+  "schema": "mechatronics-native-scilab-xcos-validation/v1",
+  "date": "2026-09-15",
+  "runtime": "Scilab 2026.1.0 on macOS",
+  "profile": "Isolated SCIHOME; no user startup or ATOMS autoload",
+  "atoms_inventory": [],
+  "atoms_downloads": false,
+  "cases": {
+    "final-mass": {
+      "configuration": {
+        "schema": "mechatronics-selected-plant/v1",
+        "plant_id": "plant",
+        "plant_type": "massSpring",
+        "parameters": {
+          "m": 1.0,
+          "b": 2.0,
+          "k": 4.0,
+          "initialPosition": 0.0,
+          "initialVelocity": 0.0
+        },
+        "A": [
+          [
+            0.0,
+            1.0
+          ],
+          [
+            -4.0,
+            -2.0
+          ]
+        ],
+        "B": [
+          [
+            0.0
+          ],
+          [
+            1.0
+          ]
+        ],
+        "C": [
+          [
+            1.0,
+            0.0
+          ]
+        ],
+        "D": [
+          [
+            0.0
+          ]
+        ],
+        "x0": [
+          0.0,
+          0.0
+        ],
+        "state_order": [
+          "position",
+          "velocity"
+        ],
+        "state_units": [
+          "m",
+          "m/s"
+        ],
+        "input_unit": "N",
+        "output_unit": "m",
+        "dt_s": 0.01,
+        "requested_duration_s": 2.0,
+        "watchdog_s": 0.5,
+        "input_limit": 1000.0,
+        "comparison_input": 1.0,
+        "boundary": "selected continuous plant only; original wiring/controllers/sources are excluded",
+        "unit_note": "firstOrder units require user declaration; labels do not enforce dimensions",
+        "evidence": "exported analytical model; external runtime and hardware execution not established",
+        "effective_duration_s": 2.0,
+        "substeps_per_tick": 1
+      },
+      "results": {
+        "scilab_output_max_error": 6.343321978796723e-10,
+        "scilab_state_max_error": 1.5660979735265812e-09,
+        "xcos_output_max_error": 2.485851290923158e-07,
+        "xcos_reloaded_output_max_difference_from_original": 0.0,
+        "reference_rows": 201,
+        "xcos_rows": 200,
+        "recorded_first_last_s": [
+          0.0,
+          1.99
+        ],
+        "native_files": {
+          "selected-plant-batch.zcos": {
+            "bytes": 3165,
+            "sha256": "f2050ddd0dffd5b5104daead37093b040038ba36b2221837e5ae9119b86c651d",
+            "archive_members": [
+              "mimetype",
+              "content.xml",
+              "dictionary/dictionary.ser",
+              "META-INF/manifest.xml"
+            ]
+          },
+          "selected-plant-scope.zcos": {
+            "bytes": 3212,
+            "sha256": "f5df24dc82981c1ad73b175657d366bc0f69e5792b5207218b721793750c5ea5",
+            "archive_members": [
+              "mimetype",
+              "content.xml",
+              "dictionary/dictionary.ser",
+              "META-INF/manifest.xml"
+            ]
+          }
+        }
+      }
+    },
+    "final-first": {
+      "configuration": {
+        "schema": "mechatronics-selected-plant/v1",
+        "plant_id": "plant",
+        "plant_type": "firstOrder",
+        "parameters": {
+          "gain": 2.0,
+          "tau": 0.5,
+          "initial": 3.0
+        },
+        "A": [
+          [
+            -2.0
+          ]
+        ],
+        "B": [
+          [
+            4.0
+          ]
+        ],
+        "C": [
+          [
+            1.0
+          ]
+        ],
+        "D": [
+          [
+            0.0
+          ]
+        ],
+        "x0": [
+          3.0
+        ],
+        "state_order": [
+          "output_state"
+        ],
+        "state_units": [
+          "K"
+        ],
+        "input_unit": "W",
+        "output_unit": "K",
+        "dt_s": 0.01,
+        "requested_duration_s": 2.0,
+        "watchdog_s": 0.5,
+        "input_limit": 1000.0,
+        "comparison_input": 1.0,
+        "boundary": "selected continuous plant only; original wiring/controllers/sources are excluded",
+        "unit_note": "firstOrder units require user declaration; labels do not enforce dimensions",
+        "evidence": "exported analytical model; external runtime and hardware execution not established",
+        "effective_duration_s": 2.0,
+        "substeps_per_tick": 1
+      },
+      "results": {
+        "scilab_output_max_error": 3.1720989834838065e-08,
+        "scilab_state_max_error": 3.1720989834838065e-08,
+        "xcos_output_max_error": 1.1419554839520174e-06,
+        "xcos_reloaded_output_max_difference_from_original": 0.0,
+        "reference_rows": 201,
+        "xcos_rows": 200,
+        "recorded_first_last_s": [
+          0.0,
+          1.99
+        ],
+        "native_files": {
+          "selected-plant-batch.zcos": {
+            "bytes": 3136,
+            "sha256": "2ebedf0b939f066508e241dc61fdfdc5709ebf685fbceb69f7f3f0bcb49d253f",
+            "archive_members": [
+              "mimetype",
+              "content.xml",
+              "dictionary/dictionary.ser",
+              "META-INF/manifest.xml"
+            ]
+          },
+          "selected-plant-scope.zcos": {
+            "bytes": 3174,
+            "sha256": "7a1bae4848e566d7f42614619dc7a036566e7d478732b0a383706695968cdcec",
+            "archive_members": [
+              "mimetype",
+              "content.xml",
+              "dictionary/dictionary.ser",
+              "META-INF/manifest.xml"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "returncode": 0,
+    "timed_out": false,
+    "elapsed_s": 0.7477184579999999,
+    "output": "  \"scilab-2026.1.0\"\nMaximum output difference versus Python RK4: 6.34332198e-10\nMaximum state difference versus Python RK4: 1.56609797e-09\nConstructed native selected-plant recording and scope diagrams.\nNative Xcos samples: 200; first/last time: 0 / 1.99 s\nMaximum native Xcos output difference versus Python RK4: 2.48585129e-07\nNATIVE_CLI_final-mass_COMPLETE\nMaximum output difference versus Python RK4: 3.17209898e-08\nMaximum state difference versus Python RK4: 3.17209898e-08\nConstructed native selected-plant recording and scope diagrams.\nNative Xcos samples: 200; first/last time: 0 / 1.99 s\nMaximum native Xcos output difference versus Python RK4: 1.14195548e-06\nNATIVE_CLI_final-first_COMPLETE\n    []\nATOMS_INVENTORY_COMPLETE_NO_DOWNLOADS\n"
+  },
+  "java_enabled_serialization": {
+    "returncode": 0,
+    "timed_out": false,
+    "elapsed_s": 2.724225791,
+    "output": "Picked up _JAVA_OPTIONS: -Djava.awt.headless=false\n  \"scilab-2026.1.0\"\nConstructed native selected-plant recording and scope diagrams.\nSaved and reloaded native Xcos recording and scope diagrams.\nNATIVE_SERIALIZATION_final-mass_COMPLETE\nConstructed native selected-plant recording and scope diagrams.\nSaved and reloaded native Xcos recording and scope diagrams.\nNATIVE_SERIALIZATION_final-first_COMPLETE\n"
+  },
+  "scope": "Numerical response, native diagram construction, batch simulation, native .zcos save/reload and replay comparison. Interactive scope rendering and hardware were not tested."
+}

@@ -14,11 +14,21 @@ A visual loop is not evidence of stability. Establish plausible physical values,
 
 1. Open the builder from the main browser lab or open `builder.html` in the same local folder.
 2. Start with the default feedback diagram. Run it, inspect the scope results, then reset before a comparison.
-3. Drag a component from the palette to the canvas; the palette's click-to-add option also supports keyboard/touch workflows. Move nodes to make the signal flow readable.
-4. Connect an output port to an input port using the port buttons. One input takes one wire; an output may feed several inputs. Select a block to inspect its parameter values and change them in the parameter editor.
+3. Drag a component from the palette to the canvas; the palette's click-to-add option also supports keyboard/touch workflows. Move a block by dragging its title/header, keeping the IN and OUT circles available for wiring.
+4. Press and hold a block's **OUT** circle, drag the dashed wire preview onto the destination **IN** circle, then release when the input highlights teal. You can also click OUT, release, then click the input; Tab and Enter/Space activate the same buttons by keyboard. One input takes one wire; an output may feed several inputs. Select a block to inspect its parameter values and change them in the parameter editor.
 5. Validate before running. Complete missing connections and resolve invalid parameters. Remove a connection before replacing it; remove unused nodes or connect their required inputs.
 6. Set the sample period and duration. Run/pause/reset, inspect live scopes and the mechanical-state illustration, and save the diagram as JSON. Load only a diagram in this editor's schema; a JSON file is data, not executable code.
 7. Compare runs by saving diagram versions and result exports with their settings. Editing starts a new experiment so a result cannot silently mix different models.
+
+### If a wire will not connect
+
+- Start at the **OUT circle**, not the block body or title. Dragging the title moves the block.
+- Watch the connection message above the diagram: a free input highlights teal; an input that already has a driver is outlined red. Select the existing wire and choose **Remove wire** before replacing it. A rejected drop preserves existing connections.
+- Release on empty space or press **Esc** to cancel a drag. Moving outside the canvas, losing pointer capture, or hiding the tab must not create a wire. A drop on another output is not a valid connection.
+- On a touch screen, hold and move from OUT to IN, or use two separate taps. If a destination is off screen, scroll to arrange a visible route first; the drag gesture does not automatically scroll the diagram. The two-click/tap method lets you scroll between selecting OUT and the input.
+- Teal means an input is unoccupied. The graph validator can still reject a connection that creates an algebraic loop. Read the reported reason; do not insert an artificial delay merely to dismiss it.
+
+A quick check is **Constant = 3 → Gain = 2 → Scope**. Add and arrange these blocks, edit the two values, connect both wires, then run: every scope sample should equal **6**.
 
 Use the visible interface labels as the authority for current controls and limits. The builder supports bounded node/wire counts and finite runs to keep a local browser responsive.
 

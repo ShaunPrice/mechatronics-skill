@@ -2,11 +2,11 @@
 
 This kit moves one **massSpring** or **firstOrder** plant from the browser's `mechatronics-block-diagram/v1` JSON into other engineering tools. It exports continuous state-space matrices, initial conditions and a unit-input comparison. The original diagram's controllers, other plants, wiring, sources, delays and nonlinear blocks are excluded from the exported model. Validate the entire diagram first so malformed or ambiguous inputs cannot be silently accepted.
 
-There is no automatic whole-diagram conversion, native Xcos diagram generator, hardware driver or robot controller connection. Xcos receives a data-loading script and a documented GUI construction recipe. Use these boundaries when reporting compatibility.
+The Xcos adapter constructs native diagrams from the installed blocks and can run a recorded batch comparison. GUI-capable Scilab can save/reload native `.zcos` files and open the scope diagram. This remains selected-plant conversion; no hardware driver or robot controller connection is included.
 
 ## 1. Generate an interface bundle
 
-From the skill repository root, using Python 3:
+From the installed skill folder (or the repository's `skills/mechatronics-engineering` folder), using Python 3:
 
 ```sh
 python3 -B scripts/export_interfaces.py \
@@ -37,7 +37,9 @@ Optional `--watchdog-s` sets the ROS receipt-age timeout (default 0.5 s); `--inp
 | `plant_data.sce` | Numeric Scilab assignments and continuous `syslin` plant |
 | `reference.csv` | Python RK4 unit-input reference, no header: time_s, input, output, state_1, optional state_2 |
 | `scilab_analysis.sce` | `csim` response, CSV output, numerical difference report and plant Bode plot |
-| `xcos_setup.sce` | Load the plant variables and open an empty Xcos editor for the recipe below |
+| `xcos_build.sce` | Construct native STEP_FUNCTION/CLSS/CLOCK_c diagrams with recording and scope variants; save them as Scilab `.sod` data |
+| `xcos_batch.sce` | Run native `scicos_simulate`, write output CSV and report error against Python |
+| `xcos_setup.sce` | Save/reload both native `.zcos` files and open the scope diagram in GUI-capable Scilab |
 | `atoms_setup.sce` | Inspect installed modules; optional installation/loading lines remain commented |
 | `ros2_ws/src/mechatronics_sim/` | Buildable `ament_python` simulation package with configuration and a pure Python core |
 
@@ -53,22 +55,51 @@ exec("/absolute/path/to/interface-example/scilab_analysis.sce", -1);
 
 The script defines a continuous system using `syslin('c', A, B, C, D, x0)`. The exported realization preserves the meaning of the initial state. [Scilab syslin documentation](https://help.scilab.org/syslin)
 
+For numerical execution in `scilab-cli`, set `interface_plots=%f` before executing the script. GUI plotting stays enabled by default. For example, put the following in a small runner script and pass that script with `scilab-cli -nb -nouserstartup -noatomsautoload -f runner.sce -quit`:
+
+```scilab
+interface_plots = %f;
+exec("/absolute/path/to/interface-example/scilab_analysis.sce", -1);
+```
+
 It supplies a constant unit-input function to `csim` and uses the CSV time grid, then writes `scilab_response.csv` with the same columns as `reference.csv`. A function input is intentional: Scilab documents the string `"step"` shortcut for zero initial state. The script prints maximum output/state differences rather than asserting that two solvers or tools were already validated. [Scilab csim documentation](https://help.scilab.org/csim), [CSV reading](https://help.scilab.org/csvRead), [CSV writing](https://help.scilab.org/csvWrite)
 
 The Bode plot is the selected **plant** frequency response. Its default comparison bounds are 0.001–1000 Hz; change them for the plant's relevant modes. Scilab's frequency arguments are Hz, including when choosing an angular-frequency display option. A plant Bode plot alone is not closed-loop stability margin evidence. A zero input gain skips the logarithmic zero-gain plot. [Scilab Bode documentation](https://help.scilab.org/bode)
 
 Use the numerical difference with an engineering acceptance tolerance in the output's units. Halve the browser/export sample interval and compare again; match input amplitude, initial conditions, output definition and time grid. The Python reference is an independently runnable numerical model, not a physical measurement. Its unit input starts at t=0 and does not reproduce an original graph's PID or delayed step.
 
-## 3. Xcos: construct the native diagram using the exported values
+## 3. Xcos: native construction, batch validation and saved diagrams
 
-Run `exec("/absolute/path/to/interface-example/xcos_setup.sce", -1);`. This loads the numeric plant data and calls `xcos()` to open an empty editor; it does not import browser JSON as a native Xcos file. The documented GUI route avoids claiming untested block-structure serialization. [Xcos entry point](https://help.scilab.org/xcos)
+Run native simulation from either Scilab CLI or its GUI:
+
+```scilab
+exec("/absolute/path/to/interface-example/xcos_batch.sce", -1);
+```
+
+The builder uses the installed `STEP_FUNCTION`, `CLSS`, `CLOCK_c`, `TOWS_c` and `CSCOPE` define functions plus native `scicos_link` connections. It creates two `scicos_diagram` objects: a workspace-recording model for batch verification and a scope model for interactive viewing. The input is a unit step at t=0; the plant has the exported initial state. No original browser controller is added. [Native diagram structure](https://help.scilab.org/scicos_diagram), [native links](https://help.scilab.org/scicos_link), [workspace recorder](https://help.scilab.org/TOWS_c)
+
+The batch script calls `scicos_simulate(...,"nw")`, writes `xcos_response.csv` (two numeric columns, time_s and output) and compares matching sampled times with the Python reference. An event exactly at the final simulation time can be excluded; the scripts report the actual first/last sample and do not invent the missing endpoint. Both diagrams also save as `selected-plant.sod`, which is Scilab data rather than an Xcos interchange file. [Native batch simulation](https://help.scilab.org/scicos_simulate)
+
+In GUI-capable Scilab, run:
+
+```scilab
+exec("/absolute/path/to/interface-example/xcos_setup.sce", -1);
+```
+
+This constructs, saves and reloads `selected-plant-batch.zcos` and `selected-plant-scope.zcos`, then opens the scope diagram. Set `interface_open_xcos=%f` beforehand to save/reload without opening a window, including in Java-enabled `scilab -nw` mode. `.zcos` serialization is disabled by Scilab in `-nwni`/`scilab-cli` mode; use the batch script there. [Native diagram save/load](https://help.scilab.org/xcosDiagramToScilab), [Xcos editor](https://help.scilab.org/xcos)
+
+The scripts use a continuous solver with absolute tolerance 1e-10, relative tolerance 1e-8, time tolerance 1e-10 and maximum integration step `sample_dt`. Scope/recording events occur every `sample_dt`; those observations are separate from the solver's internal steps. Review these choices and perform convergence checks before extending the plant.
+
+### Manual fallback and learning exercise
+
+If an installed Xcos release has incompatible block APIs, start an empty Xcos editor and follow this equivalent construction recipe. The installed version's actual source/help takes precedence over untested field assumptions.
 
 1. Copy the numeric assignments for A, B, C, D, x0, sample_dt, final_time and comparison_input from `plant_data.sce` into the diagram's Context editor. This keeps a saved native diagram independent of a previous interactive console session. Alternatively enter the numeric values directly in each dialog.
 2. Add **STEP_FUNCTION** from Sources. Set Step Time = `0`, Initial Value = `0`, Final Value = `comparison_input` (1). Its regular output is the isolated plant input. [Step block parameters](https://help.scilab.org/STEP_FUNCTION)
 3. Add **CLSS** from Continuous time systems. Enter A, B, C, D and x0 in its five corresponding fields. Wire the step's regular output to CLSS's regular input. [Continuous state-space block](https://help.scilab.org/CLSS)
 4. Add **CSCOPE** from Sinks and wire CLSS's regular output to its regular input. Set Ymin/Ymax to cover the reference output, Refresh period = `final_time`, and a suitable positive buffer size, for example 1 for a short teaching run. Set inherited-events option to 0 because an explicit clock will activate the scope. [Scope parameters and event input](https://help.scilab.org/CSCOPE)
 5. Add **CLOCK_c** from Sources. Set Period = `sample_dt`, Initialisation Time = `0`. Connect its event output to the scope's event input, using the event connection rather than a regular signal wire. [Clock parameters](https://help.scilab.org/CLOCK_c)
-6. Set final simulation time to `final_time`. Choose the continuous solver and tolerances for the plant's stiffness; begin with relative tolerance 1e-8, absolute tolerance 1e-10 and a maximum step no larger than `sample_dt`, then check convergence. The scope clock controls observations, not necessarily the solver's internal integration step.
+6. Set final simulation time to `final_time`. Choose the continuous solver and tolerances for the plant's stiffness; begin with relative tolerance 1e-8, absolute tolerance 1e-10 and a maximum step no larger than `sample_dt`, then check convergence.
 7. Run, inspect the trace, and save using the native format offered by your installed Xcos version. Record its version, solver, tolerances, context and observed result before claiming Xcos execution succeeded.
 
 For the included example, m=1 kg, b=2 N·s/m, k=4 N/m and a 1 N constant input give a steady position of 0.25 m. This analytical check is more useful than judging a curve only by its appearance. To recreate a browser feedback controller, model its sampled timing, derivative convention, filtering, saturation and anti-windup explicitly; this exporter does not do that conversion.
@@ -130,8 +161,13 @@ print(json.dumps(sample, indent=2, allow_nan=False))
 PY
 ```
 
-This exercises only the numerical core. It does not prove `colcon build`, middleware discovery, ROS topic exchange, Scilab execution or Xcos GUI behavior. Run and record those checks on the actual target runtimes before describing the corresponding interface as working.
+This exercises only the numerical core. It does not prove `colcon build`, middleware discovery, ROS topic exchange or execution in another runtime. Run and record those checks on the actual target environment before describing that interface as working.
 
 ## Evidence and maintenance
 
-The APIs and block dialogs above were checked against primary documentation on 2026-09-15; the retrieved Scilab help identifies version 2026.1.0. Source-based API compatibility and generated-source syntax checks are distinct from execution on an installed runtime. The Python schema mirror must be reviewed alongside browser `block-engine.js` changes. Both tools reject unsupported behavior; a future block type needs a deliberate model mapping and validation before export support is added.
+On 2026-09-15, Scilab 2026.1.0 on macOS executed the exported numerical scripts and native Xcos batch models for mass-spring and first-order plants, including nonzero initial state. Java-enabled batch mode also saved/reloaded native `.zcos` diagrams. These tests establish those bounded software paths on that installed release; interactive scope rendering, ROS middleware and hardware behavior remain separate checks. ATOMS inspection performed no downloads or module loading.
+
+The optional native test in `scripts/test_interfaces.py` runs when `scilab-cli` is available (or when `SCILAB_CLI` points to it). It uses an isolated Scilab profile, disables user startup/ATOMS autoload, checks two plant responses and enforces a bounded runtime. Without Scilab, it reports an explicit skipped runtime test. The Python schema mirror must be reviewed alongside browser `block-engine.js` changes. A future block type needs a deliberate model mapping and validation before export support is added.
+
+
+The repository also provides a [ROS 2 Docker test environment](https://github.com/ShaunPrice/mechatronics-skill/tree/main/integrations/ros2-docker). On 2026-09-15, its generated package built successfully in ROS 2 Jazzy on Linux arm64, and seven live middleware checks passed between separate processes, including command receipt, state/metadata, stale/invalid input handling and simulation-clock behavior. The container was left stopped for reuse. See that guide and its recorded evidence for exact scope, versions and start/test/stop commands; this does not establish hardware operation.
