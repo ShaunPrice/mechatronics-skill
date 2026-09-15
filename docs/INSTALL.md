@@ -2,9 +2,9 @@
 
 Installation guidance checked against official documentation on 15 September 2026. Interfaces, availability and workspace policies can change. These instructions do not imply that an account upload or global installation has already been performed.
 
-## Get the private repository
+## Get the repository
 
-Authenticate using an account with access, then clone:
+Clone the public repository; no GitHub account is required:
 
 ```sh
 git clone https://github.com/ShaunPrice/mechatronics-skill.git
@@ -12,9 +12,9 @@ cd mechatronics-skill
 python3 scripts/build_packages.py
 ```
 
-For prebuilt files, open the repository’s private Releases page while signed in and download the skill ZIP and both standalone HTML pages.
+For prebuilt files, open the repository’s [Releases page](https://github.com/ShaunPrice/mechatronics-skill/releases) and download the skill ZIP and both standalone HTML pages.
 
-Alternatively use GitHub's authenticated **Code → Download ZIP**, extract it, and run the build command from that folder. The browser source runs immediately without building; packaging requires Python 3.9+. Never place an access token into a shared command, file or prompt.
+Alternatively use GitHub's **Code → Download ZIP**, extract it, and run the build command from that folder. The browser source runs immediately without building; packaging requires Python 3.9+. Never place an access token into a shared command, file or prompt.
 
 ## Claude web/Desktop: upload the skill
 

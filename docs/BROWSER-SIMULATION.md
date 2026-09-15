@@ -12,7 +12,7 @@
 
 Open `skills/mechatronics-engineering/assets/browser-lab/index.html` in a modern local browser. Keep its sibling CSS/JavaScript files together. There is no installation or network dependency. Alternatively run `python3 scripts/build_packages.py` and open `dist/mechatronics-browser-workbench.html`, which contains the same app in one file.
 
-GitHub renders HTML as source; download/clone first. This private repository does not enable a public website. If your environment requires HTTP for local preview, serve only the lab directory on loopback:
+GitHub renders HTML as source; download/clone first. The repository is public; the simulator runs locally after download. If your environment requires HTTP for local preview, serve only the lab directory on loopback:
 
 ```sh
 python3 -m http.server 8765 --bind 127.0.0.1 --directory skills/mechatronics-engineering/assets/browser-lab
