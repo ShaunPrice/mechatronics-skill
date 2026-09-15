@@ -12,19 +12,21 @@ cd mechatronics-skill
 python3 scripts/build_packages.py
 ```
 
-For prebuilt files, open the repository’s [Releases page](https://github.com/ShaunPrice/mechatronics-skill/releases) and download the skill ZIP and both standalone HTML pages.
+For prebuilt files, open the repository’s [Releases page](https://github.com/ShaunPrice/mechatronics-skill/releases) and download the Claude `.skill` bundle (or portable `.zip`) and both standalone HTML pages.
 
 Alternatively use GitHub's **Code → Download ZIP**, extract it, and run the build command from that folder. The browser source runs immediately without building; packaging requires Python 3.9+. Never place an access token into a shared command, file or prompt.
 
 ## Claude web/Desktop: upload the skill
 
-1. Build the packages, or use the supplied `mechatronics-engineering-0.1.0.zip`.
+1. Download [mechatronics-engineering-0.1.0.skill](https://github.com/ShaunPrice/mechatronics-skill/releases/download/v0.1.0/mechatronics-engineering-0.1.0.skill), or run the build command above to create it in `dist/`.
 2. Open Claude's skill management interface (currently **Customize → Skills**) and choose the custom-skill upload/create option. Enable required skill/code-execution features if your workspace permits them.
-3. Upload `dist/mechatronics-engineering-0.1.0.zip` and enable it. The ZIP has one top-level `mechatronics-engineering/` folder containing `SKILL.md`, references, assets, scripts and licence.
+3. Select `mechatronics-engineering-0.1.0.skill`, save the skill and enable it. The `.skill` file is a ZIP-format bundle with one top-level `mechatronics-engineering/` folder containing `SKILL.md`, references, assets, scripts and licence. The release's `.zip` file contains the same bytes and is also available for upload or manual extraction.
 4. Start a conversation and ask: “Use Mechatronics Engineering to help me diagnose a motor that oscillates after stopping. Explain the terms and choose the first measurements.”
 5. Confirm the response uses the skill and relevant references. Ask for a browser simulation and verify that actual code/files are produced. If script execution is unavailable, the text guidance remains useful, but do not assume calculations were run.
 
 [Anthropic's custom-skill instructions](https://support.claude.com/en/articles/12512198-how-to-create-custom-skills) describe packaging and activation. A local filesystem copy alone does not establish availability in Claude web/Cowork.
+
+`SHA256SUMS` in the release covers both bundle filenames. From the download folder, `shasum -a 256 mechatronics-engineering-0.1.0.skill` prints the digest to compare with its entry. Both bundles include the complete 52-file skill, including the browser simulators and native-tool interface templates.
 
 ## Claude Code: local skill folder
 

@@ -53,14 +53,19 @@ def main():
     manifest=json.loads(text(dist/"manifest.json"))
     expected={p.relative_to(SKILL).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
     if expected!=manifest["files"]: errors.append("manifest differs from source")
-    with zipfile.ZipFile(dist/f"{NAME}-{VERSION}.zip") as z:
-        if z.testzip(): errors.append("archive CRC error")
-        names=z.namelist()
-        if len(names)!=len(set(names)): errors.append("duplicate archive entries")
-        if any(Path(n).is_absolute() or ".." in Path(n).parts or not n.startswith(NAME+"/") for n in names): errors.append("unsafe/unexpected archive layout")
-        if set(names)!={NAME+"/"+p for p in expected}: errors.append("archive/source file set differs")
-        for p,digest in expected.items():
-            if hashlib.sha256(z.read(NAME+"/"+p)).hexdigest()!=digest: errors.append("archive mismatch: "+p)
+    for suffix in ("zip", "skill"):
+        with zipfile.ZipFile(dist/f"{NAME}-{VERSION}.{suffix}") as z:
+            if z.testzip(): errors.append(f"{suffix} archive CRC error")
+            names=z.namelist()
+            if len(names)!=len(set(names)): errors.append(f"{suffix} duplicate archive entries")
+            if any(Path(n).is_absolute() or ".." in Path(n).parts or not n.startswith(NAME+"/") for n in names): errors.append(f"{suffix} unsafe/unexpected archive layout")
+            if set(names)!={NAME+"/"+p for p in expected}: errors.append(f"{suffix} archive/source file set differs")
+            for p,digest in expected.items():
+                if hashlib.sha256(z.read(NAME+"/"+p)).hexdigest()!=digest: errors.append(f"{suffix} archive mismatch: "+p)
+    if (dist/f"{NAME}-{VERSION}.skill").read_bytes()!=(dist/f"{NAME}-{VERSION}.zip").read_bytes():
+        errors.append("Claude .skill bundle differs from portable ZIP")
+    checksums="".join(hashlib.sha256(p.read_bytes()).hexdigest()+"  "+p.name+"\n" for p in sorted(dist.iterdir()) if p.is_file() and p.name!="SHA256SUMS")
+    if text(dist/"SHA256SUMS")!=checksums: errors.append("release checksums differ from generated assets")
     if text(SKILL/"LICENSE")!=text(ROOT/"LICENSE"): errors.append("licence copies differ")
     python_bundle=text(ROOT/"integrations/chatgpt/Python-examples.txt")
     for p in files:
@@ -69,7 +74,7 @@ def main():
             if entry not in python_bundle: errors.append(f"missing/stale hosted interface companion: {p.name}")
     if errors:
         raise SystemExit("\n".join(errors))
-    print(json.dumps({"status":"PASS","skill_files":len(files),"local_links_checked":count,"archive_and_manifest_match":True},indent=2))
+    print(json.dumps({"status":"PASS","skill_files":len(files),"local_links_checked":count,"archive_and_manifest_match":True,"claude_skill_matches_zip":True,"release_checksums_match":True},indent=2))
 
 
 if __name__=="__main__":

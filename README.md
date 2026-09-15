@@ -6,6 +6,7 @@ Built collaboratively with Claude and Codex. **MIT licensed.** The source, docum
 
 ## Start here
 
+- [Download the Claude .skill bundle](https://github.com/ShaunPrice/mechatronics-skill/releases/download/v0.1.0/mechatronics-engineering-0.1.0.skill)
 - [Install for Claude or ChatGPT](docs/INSTALL.md)
 - [Use the skill and example prompts](docs/USAGE.md)
 - [Topics and how to apply them](docs/TOPICS.md)
@@ -83,7 +84,7 @@ node skills/mechatronics-engineering/scripts/test-builder-connections.cjs
 
 ## Packaging and maintenance
 
-The source of truth is `skills/mechatronics-engineering/`. Run `python3 scripts/build_packages.py` to regenerate the skill ZIP, hosted ChatGPT knowledge/templates and standalone browser pages; run `python3 scripts/validate_package.py` to check the package and internal links. `dist/` is generated and ignored by Git; build it after cloning, or download the packaged files from the repository’s [Releases page](https://github.com/ShaunPrice/mechatronics-skill/releases). The ChatGPT integration files are committed for direct download and regenerated from source where appropriate.
+The source of truth is `skills/mechatronics-engineering/`. Run `python3 scripts/build_packages.py` to regenerate the Claude `.skill` bundle, equivalent portable ZIP, hosted ChatGPT knowledge/templates and standalone browser pages; run `python3 scripts/validate_package.py` to check both archives, release checksums and internal links. `dist/` is generated and ignored by Git; build it after cloning, or download the packaged files from the repository’s [Releases page](https://github.com/ShaunPrice/mechatronics-skill/releases). The ChatGPT integration files are committed for direct download and regenerated from source where appropriate.
 
 This is an engineering guidance and prototyping skill. It distinguishes assumptions, calculations, simulations, software tests and physical evidence. It does not claim that a generated design is commissioned or certified, or that publishing these files installs the skill into any account. [Primary sources](skills/mechatronics-engineering/references/sources.md) explain where to verify device, software and market-specific details.
 

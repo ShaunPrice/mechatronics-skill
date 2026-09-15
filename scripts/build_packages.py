@@ -79,13 +79,15 @@ def main():
             info.compress_type=zipfile.ZIP_DEFLATED
             info.external_attr=0o644 << 16
             z.writestr(info,p.read_bytes())
+    skill_path=zip_path.with_suffix(".skill")
+    skill_path.write_bytes(zip_path.read_bytes())
     manifest={"name":NAME,"version":VERSION,"files":{p.relative_to(SKILL).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in source_files()}}
     (dist/"manifest.json").write_text(json.dumps(manifest,indent=2)+"\n",encoding="utf-8")
     checksums=[]
     for p in sorted(dist.iterdir()):
         if p.is_file() and p.name!="SHA256SUMS": checksums.append(hashlib.sha256(p.read_bytes()).hexdigest()+"  "+p.name)
     (dist/"SHA256SUMS").write_text("\n".join(checksums)+"\n",encoding="utf-8")
-    print(json.dumps({"skill_files":len(manifest["files"]),"reference_files":len(references),"zip":str(zip_path.relative_to(ROOT)),"browser":str((dist/"mechatronics-browser-workbench.html").relative_to(ROOT)),"instructions_characters":len(text(integration/"Instructions.txt"))},indent=2))
+    print(json.dumps({"skill_files":len(manifest["files"]),"reference_files":len(references),"zip":str(zip_path.relative_to(ROOT)),"claude_skill":str(skill_path.relative_to(ROOT)),"browser":str((dist/"mechatronics-browser-workbench.html").relative_to(ROOT)),"instructions_characters":len(text(integration/"Instructions.txt"))},indent=2))
 
 
 if __name__=="__main__":
