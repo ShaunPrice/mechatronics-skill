@@ -1,0 +1,42 @@
+running egg_info
+creating ../../build/mechatronics_sim/mechatronics_sim.egg-info
+writing ../../build/mechatronics_sim/mechatronics_sim.egg-info/PKG-INFO
+writing dependency_links to ../../build/mechatronics_sim/mechatronics_sim.egg-info/dependency_links.txt
+writing entry points to ../../build/mechatronics_sim/mechatronics_sim.egg-info/entry_points.txt
+writing requirements to ../../build/mechatronics_sim/mechatronics_sim.egg-info/requires.txt
+writing top-level names to ../../build/mechatronics_sim/mechatronics_sim.egg-info/top_level.txt
+writing manifest file '../../build/mechatronics_sim/mechatronics_sim.egg-info/SOURCES.txt'
+reading manifest file '../../build/mechatronics_sim/mechatronics_sim.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file '../../build/mechatronics_sim/mechatronics_sim.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /workspace/ros2_ws/build/mechatronics_sim/build
+creating /workspace/ros2_ws/build/mechatronics_sim/build/lib
+creating /workspace/ros2_ws/build/mechatronics_sim/build/lib/mechatronics_sim
+copying mechatronics_sim/__init__.py -> /workspace/ros2_ws/build/mechatronics_sim/build/lib/mechatronics_sim
+copying mechatronics_sim/sim_core.py -> /workspace/ros2_ws/build/mechatronics_sim/build/lib/mechatronics_sim
+copying mechatronics_sim/node.py -> /workspace/ros2_ws/build/mechatronics_sim/build/lib/mechatronics_sim
+copying mechatronics_sim/plant.json -> /workspace/ros2_ws/build/mechatronics_sim/build/lib/mechatronics_sim
+running install
+running install_lib
+creating /workspace/ros2_ws/install/mechatronics_sim/lib/python3.12/site-packages/mechatronics_sim
+copying /workspace/ros2_ws/build/mechatronics_sim/build/lib/mechatronics_sim/__init__.py -> /workspace/ros2_ws/install/mechatronics_sim/lib/python3.12/site-packages/mechatronics_sim
+copying /workspace/ros2_ws/build/mechatronics_sim/build/lib/mechatronics_sim/sim_core.py -> /workspace/ros2_ws/install/mechatronics_sim/lib/python3.12/site-packages/mechatronics_sim
+copying /workspace/ros2_ws/build/mechatronics_sim/build/lib/mechatronics_sim/node.py -> /workspace/ros2_ws/install/mechatronics_sim/lib/python3.12/site-packages/mechatronics_sim
+copying /workspace/ros2_ws/build/mechatronics_sim/build/lib/mechatronics_sim/plant.json -> /workspace/ros2_ws/install/mechatronics_sim/lib/python3.12/site-packages/mechatronics_sim
+byte-compiling /workspace/ros2_ws/install/mechatronics_sim/lib/python3.12/site-packages/mechatronics_sim/__init__.py to __init__.cpython-312.pyc
+byte-compiling /workspace/ros2_ws/install/mechatronics_sim/lib/python3.12/site-packages/mechatronics_sim/sim_core.py to sim_core.cpython-312.pyc
+byte-compiling /workspace/ros2_ws/install/mechatronics_sim/lib/python3.12/site-packages/mechatronics_sim/node.py to node.cpython-312.pyc
+running install_data
+creating /workspace/ros2_ws/install/mechatronics_sim/share/ament_index
+creating /workspace/ros2_ws/install/mechatronics_sim/share/ament_index/resource_index
+creating /workspace/ros2_ws/install/mechatronics_sim/share/ament_index/resource_index/packages
+copying resource/mechatronics_sim -> /workspace/ros2_ws/install/mechatronics_sim/share/ament_index/resource_index/packages
+copying package.xml -> /workspace/ros2_ws/install/mechatronics_sim/share/mechatronics_sim
+copying LICENSE -> /workspace/ros2_ws/install/mechatronics_sim/share/mechatronics_sim
+running install_egg_info
+Copying ../../build/mechatronics_sim/mechatronics_sim.egg-info to /workspace/ros2_ws/install/mechatronics_sim/lib/python3.12/site-packages/mechatronics_sim-0.1.0-py3.12.egg-info
+running install_scripts
+Installing plant_sim script to /workspace/ros2_ws/install/mechatronics_sim/lib/mechatronics_sim
+writing list of installed files to '/workspace/ros2_ws/build/mechatronics_sim/install.log'

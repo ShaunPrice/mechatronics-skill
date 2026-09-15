@@ -1,0 +1,5 @@
+[WARN] [1789472306.668536259] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1789472306.668565509] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [1789472306.702323384] [mechatronics_selected_plant_sim]: Simulation only. Input: /mechatronics_sim/force_n; state: /mechatronics_sim/state
+[WARN] [1789472309.950696719] [mechatronics_selected_plant_sim]: Rejected invalid input; simulation command cleared to zero
+[WARN] [1789472310.270503928] [mechatronics_selected_plant_sim]: Rejected invalid input; simulation command cleared to zero
